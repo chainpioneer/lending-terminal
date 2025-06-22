@@ -1,6 +1,6 @@
-# Impermax lending terminal
+# Lending terminal
 
-An advanced position management terminal for Impermax-like pools
+An advanced position management terminal for lending pools
 
 Features: 
 - Shows current and virtual (that can be applied onchain) APR of pools
