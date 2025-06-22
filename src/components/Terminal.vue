@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref} from 'vue'
-import load, {Deposit, Pool} from "../logic/load";
+import load, {Pool} from "../logic/load";
 import {isAddress} from "web3-validator";
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
@@ -11,6 +11,7 @@ import Popover from 'primevue/popover';
 import Panel from 'primevue/panel';
 import {ASSETS, Chains} from "../constants/constants";
 import ToggleSwitch from 'primevue/toggleswitch';
+import {Deposit} from "../utils/depositUtils";
 
 defineProps<{ msg: string }>()
 
@@ -23,7 +24,8 @@ const chain = ref('')
 const collapsed = ref({
   'globals': localStorage.getItem('collapsed.globals') !== 'false',
   'chains': localStorage.getItem('collapsed.chains') !== 'false',
-  'assets': localStorage.getItem('collapsed.assets') !== 'false'
+  'assets': localStorage.getItem('collapsed.assets') !== 'false',
+  'lending': localStorage.getItem('collapsed.lending') !== 'false'
 })
 
 const idleByUser = ref<any>();
@@ -140,11 +142,13 @@ const toggleAssetSelected = (asset: string) => {
 
 const storage = () => localStorage
 
-const chainIdByChain = {
+const chainIdByChain: { [ch in Chains]: string } = {
   [Chains.SCROLL]: '0x82750',
   [Chains.OP]: '0xa',
   [Chains.FTM]: '0xfa',
+  [Chains.BLAST]: '0x13e31',
   [Chains.BASE]: '0x2105',
+  [Chains.SONIC]: '0x92',
 }
 
 const ethereum = () => (window as any).ethereum
@@ -152,13 +156,17 @@ const ethereum = () => (window as any).ethereum
 function chainImgSrc(ch: number | string) {
   switch (ch) {
     case Chains.FTM:
-      return 'https://cryptologos.cc/logos/fantom-ftm-logo.png'
+      return 'https://res.coinpaper.com/coinpaper/fantom_ftm_logo_5b62819c57.png'
+    case Chains.BLAST:
+      return 'https://cdn.prod.website-files.com/65a6baa1a3f8ed336f415cb4/65a6cc95aae1066cf96d497d_Logo%20Black%20on%20Yellow%20Background%402x.png'
     case Chains.BASE:
       return 'https://avatars.githubusercontent.com/u/108554348?v=4'
     case Chains.OP:
-      return 'https://cryptologos.cc/logos/optimism-ethereum-op-logo.png'
+      return 'https://zengo.com/wp-content/uploads/Optimism.png'
     case Chains.SCROLL:
-      return 'https://global.discourse-cdn.com/flex032/uploads/scroll2/original/2X/3/3bc70fd653f9c50abbb41b7568e549535f768fcc.png'
+      return 'https://img.cryptorank.io/coins/scroll1693474620599.png'
+    case Chains.SONIC:
+      return 'https://img.cryptorank.io/coins/sonic1722608075138.png'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -172,16 +180,22 @@ function assetImgSrc(asset: number | string) {
       return 'https://whattofarm.io/assets/dex/tokens/200/fbomb-bomb-logo.webp'
     case ASSETS.OP:
       return chainImgSrc(Chains.OP)
+    case ASSETS.SONIC:
+      return chainImgSrc(Chains.SONIC)
     case ASSETS.IBEX:
       return 'https://icons.llama.fi/impermax-finance.png'
     case ASSETS.wstETH:
-      return 'https://cryptologos.cc/logos/steth-steth-logo.png'
+      return 'https://assets.gemwallet.com/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png'
     case ASSETS.USDC:
-      return 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+      return 'https://png.pngtree.com/png-vector/20220709/ourmid/pngtree-usd-coin-usdc-digital-stablecoin-icon-technology-pay-web-vector-png-image_37843734.png'
     case ASSETS.cbBTC:
       return 'https://s2.coinmarketcap.com/static/img/coins/200x200/32731.png'
+    case ASSETS.cbETH:
+      return 'https://res.coinpaper.com/coinpaper/cbeth_kfal8a.png'
     case ASSETS.AERO:
       return 'https://s2.coinmarketcap.com/static/img/coins/200x200/29270.png'
+    case ASSETS.VELO:
+      return 'https://cdn.bitpanda.com/logos/v4/asset/light/1eecbe88-0d9e-68b8-a5bd-0774d211e03b.png'
     case ASSETS.ETH:
       return 'https://seeklogo.com/images/E/ethereum-logo-EC6CDBA45B-seeklogo.com.png'
     default:
@@ -190,35 +204,68 @@ function assetImgSrc(asset: number | string) {
 }
 
 function platformImgSrc(platform: string) {
-  if (platform === 'Impermax') {
-    return assetImgSrc(ASSETS.IBEX)
-  } else if (platform === 'Tarot') {
-    return 'https://www.tarot.to/favicon.ico'
+  switch (platform) {
+    case 'Impermax':
+      return assetImgSrc(ASSETS.IBEX)
+    case 'Tarot':
+      return 'https://www.tarot.to/favicon.ico'
+    case 'AAVE':
+      return 'https://cdn.freelogovectors.net/wp-content/uploads/2021/12/aavelogo-freelogovectors.net_.png'
+    default:
+      return 'https://static.thenounproject.com/png/1166209-200.png'
   }
-  return 'https://static.thenounproject.com/png/1166209-200.png'
 }
 
 function linkToPool(pool: { vault: string, platform: string, chain: Chains, stable: boolean}) {
-  if (pool.platform === 'Tarot') {
-    let chainId
-    switch (pool.chain) {
-      case Chains.BASE: chainId = '8453'; break
-      case Chains.SCROLL: chainId = '534352'; break
-      case Chains.OP: chainId = '10'; break
-      case Chains.FTM: chainId = '250'; break
-      default: throw new Error(`unknown chain ${pool.chain}`)
+  switch (pool.platform) {
+    case 'Tarot': {
+      let chainId
+      switch (pool.chain) {
+        case Chains.BASE:
+          chainId = '8453';
+          break
+        case Chains.SCROLL:
+          chainId = '534352';
+          break
+        case Chains.OP:
+          chainId = '10';
+          break
+        case Chains.FTM:
+          chainId = '250';
+          break
+        case Chains.SONIC:
+          chainId = '146';
+          break
+        default:
+          throw new Error(`unknown chain ${pool.chain}`)
+      }
+      return `https://tarot.to/lending-pool/${chainId}/${pool.vault.toLowerCase()}`
     }
-    return `https://tarot.to/lending-pool/${chainId}/${pool.vault.toLowerCase()}`
+    case 'Impermax': {
+      let chainPrefix
+      switch (pool.chain) {
+        case Chains.BASE: chainPrefix = 'base'; break
+        case Chains.SCROLL: chainPrefix = 'scroll'; break
+        case Chains.OP: chainPrefix = 'optimism'; break
+        case Chains.FTM: chainPrefix = 'fantom'; break
+        case Chains.BLAST: chainPrefix = 'blast'; break
+        case Chains.SONIC: chainPrefix = 'sonic'; break
+        default: throw new Error(`unknown chain ${pool.chain}`)
+      }
+      return `https://${chainPrefix}.impermax.finance/lending-pool/${typeof pool.stable === 'boolean' ? pool.stable ? '7' : '6' : '4'}/${pool.vault.toLowerCase()}`
+    }
+    case 'AAVE':
+      let chainName
+      switch (pool.chain) {
+        case Chains.BASE: chainName = 'base'; break
+        case Chains.SCROLL: chainName = 'scroll'; break
+        case Chains.OP: chainName = 'optimism'; break
+        default: throw new Error(`unknown chain ${pool.chain}`)
+      }
+      return `https://app.aave.com/?marketName=proto_${chainName}_v3`
+    default:
+      throw new Error(`Unknown platform ${pool.platform}`)
   }
-  let chainPrefix
-  switch (pool.chain) {
-    case Chains.BASE: chainPrefix = 'base'; break
-    case Chains.SCROLL: chainPrefix = 'scroll'; break
-    case Chains.OP: chainPrefix = 'optimism'; break
-    case Chains.FTM: chainPrefix = 'fantom'; break
-    default: throw new Error(`unknown chain ${pool.chain}`)
-  }
-  return `https://${chainPrefix}.impermax.finance/lending-pool/${pool.stable ? '7' : '6'}/${pool.vault.toLowerCase()}`
 }
 
 function linkToExplorer(pool: Pool) {
@@ -228,6 +275,8 @@ function linkToExplorer(pool: Pool) {
     case Chains.SCROLL: chainPrefix = 'scrollscan.com'; break
     case Chains.OP: chainPrefix = 'optimistic.etherscan.io'; break
     case Chains.FTM: chainPrefix = 'ftmscan.com'; break
+    case Chains.BLAST: chainPrefix = 'blastscan.io'; break
+    case Chains.SONIC: chainPrefix = 'sonicscan.org'; break
     default: throw new Error(`unknown chain ${pool.chain}`)
   }
   return `https://${chainPrefix}/address/${pool.borrowable}`
@@ -360,6 +409,70 @@ function toUSDCurrency(n: number | string): string {
       </template>
   </Panel>
 
+  <Panel header="L&B positions" class="toggleable-area" toggleable  :collapsed="collapsed.lending" @update:collapsed="(event) => { setCollapsed('lending', event) }">
+      <div class="asset-summarized-info">
+        <template v-if="data" v-for="(chainProps, chain) in data.compoundBorrowingInfo" :key="chain">
+         <template v-if="data" v-for="(marketProps, market) in chainProps" :key="market">
+          <template v-if="data" v-for="(positionProps, user) in marketProps.positions" :key="user">
+            <Card class="card-chain">
+              <template #title>
+                <Image :src='assetImgSrc(marketProps.asset)' :alt='marketProps.asset' width="50px" />
+              </template>
+              <template #subtitle> {{user}} </template>
+              <template #content>
+                Supplied: {{toUSDCurrency(positionProps.collateralTotalUsd)}}
+                <template v-for="(collateralProps, collateral) in marketProps.collaterals">
+                  <template v-if="collateralProps[user] && collateralProps[user].bn > 0">
+                    <div><span style="color: gray">{{ collateralProps[user].amount }} {{marketProps.collateralToAsset[collateral]}} ({{toUSDCurrency(collateralProps[user].usd)}})</span></div>
+                  </template>
+                </template>
+
+                <div>Borrowed: {{marketProps.borrowed[user].amount}} {{marketProps.asset}} ({{toUSDCurrency(marketProps.borrowed[user].usd)}})</div>
+                <div>Daily borrowing cost: {{marketProps.spendings[user].amount}} {{marketProps.asset}} ({{toUSDCurrency(marketProps.spendings[user].usd)}})</div>
+                <div>Daily reward: {{marketProps.rewards[user].amount}} {{ASSETS.COMP}} ({{toUSDCurrency(marketProps.rewards[user].usd)}})</div>
+                <div>Resulting APR: {{positionProps.apr}}%</div>
+                <div>Health factor: {{positionProps.healthFactor}}</div>
+                <div>Liquidation price: {{toUSDCurrency(positionProps.liquidationPrice)}} (current: {{toUSDCurrency(marketProps.assetPrice)}})</div>
+              </template>
+            </Card>
+          </template>
+         </template>
+        </template>
+        <template v-if="data" v-for="(positionProps, userChain) in data.aavePositions" :key="userChain">
+          <Card class="card-chain">
+            <template #title>
+              <Image :src='platformImgSrc("AAVE")' alt="AAVE" width="50px" />
+              <Image :src='chainImgSrc((userChain as unknown as string).substring(42))' :alt='chain' width="50px" />
+            </template>
+            <template #subtitle> {{(userChain as unknown as string).substring(0, 42)}} </template>
+            <template #content>
+              Supplied: {{toUSDCurrency(positionProps.collateralTotalUsd)}}
+              <template v-for="(collateralProps, asset) in positionProps.collaterals">
+                <template v-if="collateralProps.bn > 0">
+                  <div><span style="color: gray">{{ collateralProps.amount }} {{asset}} ({{toUSDCurrency(collateralProps.usd)}})</span></div>
+                </template>
+              </template>
+
+              <div>Borrowed: {{toUSDCurrency(positionProps.borrowedTotalUsd)}}</div>
+              <template v-for="(borrowProps, asset) in positionProps.borrows">
+                <template v-if="borrowProps.bn > 0">
+                  <div><span style="color: gray">{{ borrowProps.amount }} {{asset}} ({{toUSDCurrency(borrowProps.usd)}})</span></div>
+                </template>
+              </template>
+              <div>Daily borrowing cost: {{toUSDCurrency(positionProps.spendings)}}</div>
+              <div>Daily earnings: {{toUSDCurrency(positionProps.earnings)}}</div>
+              <div>Resulting APR: {{positionProps.apr}}%</div>
+              <div>Health factor: {{positionProps.healthFactor}}</div>
+
+              <div style="display: flex; justify-content: center; align-items: center;">
+                <Button as="a" label="Go to AAVE" severity="secondary" outlined class="w-full" :href='linkToPool({ vault: "", platform: "AAVE", stable: false, chain: (userChain as unknown as string).substring(42) as Chains })' target="_blank" rel="noopener" />
+              </div>
+            </template>
+          </Card>
+        </template>
+      </div>
+  </Panel>
+
   <Panel header="Liquidity by assets" class="toggleable-area" toggleable  :collapsed="collapsed.assets" @update:collapsed="(event) => { setCollapsed('assets', event) }">
       <div class="asset-summarized-info">
         <template v-if="data" v-for="(assetProps, asset, index) in data.cumulativeValuesByAsset" :key="asset">
@@ -385,6 +498,7 @@ function toUSDCurrency(n: number | string): string {
               </Popover>
               <p class="m-0">
                 Daily earnings: {{ assetProps.oldDailyEarnings }} ({{toUSDCurrency(assetProps.oldDailyEarningsUsd)}}) -> {{ assetProps.maxDailyEarnings }} ({{toUSDCurrency(assetProps.maxDailyEarningsUsd)}})
+                <span style="color: green" v-if="data.compoundBorrowingRewardByBorrowedAsset[asset]"> +{{data.compoundBorrowingRewardByBorrowedAsset[asset].amount}} {{ASSETS.COMP}} ({{toUSDCurrency(data.compoundBorrowingRewardByBorrowedAsset[asset].usd)}})</span>
               </p>
               <p class="m-0">
                 APR: {{assetProps.currentAPR}}% -> {{assetProps.maxAPR}}%
@@ -546,7 +660,7 @@ function toUSDCurrency(n: number | string): string {
       <div class="asset-summarized-info">
         <template v-if="data" v-for="pool in data.goodPools">
           <Card class="card-pool" v-if="selectedChains[pool.chain] && selectedAssets[pool.asset] && (!onlyMyDeposits || pool.suppliedBN > 0)">
-            <template #title>Collateral: {{pool.asset}}/{{pool.oppositeSymbol}} ({{pool.vaultAPR}}%)</template>
+            <template #title>{{pool.platform === 'AAVE' ? '' : 'Collateral:'}} {{pool.asset}}{{pool.oppositeSymbol ? '/' : ''}}{{pool.oppositeSymbol}} ({{pool.vaultAPR === '' ? 'AAVE' : pool.vaultAPR + '%'}})</template>
             <template #subtitle>
               <a target="_blank" rel="noopener" :href="linkToExplorer(pool)" style="font-family: monospace">{{pool.borrowable}}</a>
             </template>
