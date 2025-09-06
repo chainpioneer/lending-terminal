@@ -149,6 +149,7 @@ const chainIdByChain: { [ch in Chains]: string } = {
   [Chains.BLAST]: '0x13e31',
   [Chains.BASE]: '0x2105',
   [Chains.SONIC]: '0x92',
+  [Chains.AVAX]: '0xa86a',
 }
 
 const ethereum = () => (window as any).ethereum
@@ -167,6 +168,8 @@ function chainImgSrc(ch: number | string) {
       return 'https://img.cryptorank.io/coins/scroll1693474620599.png'
     case Chains.SONIC:
       return 'https://img.cryptorank.io/coins/sonic1722608075138.png'
+    case Chains.AVAX:
+      return 'https://static.vecteezy.com/system/resources/previews/011/307/278/non_2x/avalanche-avax-badge-crypto-isolated-on-white-background-blockchain-technology-3d-rendering-free-png.png'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -176,6 +179,8 @@ function assetImgSrc(asset: number | string) {
   switch (asset) {
     case ASSETS.FTM:
       return chainImgSrc(Chains.FTM)
+    case ASSETS.AVAX:
+      return chainImgSrc(Chains.AVAX)
     case 'fBOMB':
       return 'https://whattofarm.io/assets/dex/tokens/200/fbomb-bomb-logo.webp'
     case ASSETS.OP:
@@ -195,7 +200,7 @@ function assetImgSrc(asset: number | string) {
     case ASSETS.AERO:
       return 'https://s2.coinmarketcap.com/static/img/coins/200x200/29270.png'
     case ASSETS.VELO:
-      return 'https://cdn.bitpanda.com/logos/v4/asset/light/1eecbe88-0d9e-68b8-a5bd-0774d211e03b.png'
+      return 'https://img.cryptorank.io/exchanges/150x150.velodrome_v_21704966248564.png'
     case ASSETS.ETH:
       return 'https://seeklogo.com/images/E/ethereum-logo-EC6CDBA45B-seeklogo.com.png'
     default:
@@ -236,6 +241,9 @@ function linkToPool(pool: { vault: string, platform: string, chain: Chains, stab
         case Chains.SONIC:
           chainId = '146';
           break
+        case Chains.AVAX:
+          chainId = '43114';
+          break
         default:
           throw new Error(`unknown chain ${pool.chain}`)
       }
@@ -250,6 +258,7 @@ function linkToPool(pool: { vault: string, platform: string, chain: Chains, stab
         case Chains.FTM: chainPrefix = 'fantom'; break
         case Chains.BLAST: chainPrefix = 'blast'; break
         case Chains.SONIC: chainPrefix = 'sonic'; break
+        case Chains.AVAX: chainPrefix = 'avalanche'; break
         default: throw new Error(`unknown chain ${pool.chain}`)
       }
       return `https://${chainPrefix}.impermax.finance/lending-pool/${typeof pool.stable === 'boolean' ? pool.stable ? '7' : '6' : '4'}/${pool.vault.toLowerCase()}`
@@ -277,6 +286,7 @@ function linkToExplorer(pool: Pool) {
     case Chains.FTM: chainPrefix = 'ftmscan.com'; break
     case Chains.BLAST: chainPrefix = 'blastscan.io'; break
     case Chains.SONIC: chainPrefix = 'sonicscan.org'; break
+    case Chains.AVAX: chainPrefix = 'snowscan.xyz'; break
     default: throw new Error(`unknown chain ${pool.chain}`)
   }
   return `https://${chainPrefix}/address/${pool.borrowable}`
@@ -714,7 +724,7 @@ function toUSDCurrency(n: number | string): string {
             <template #footer>
                 <div style="display: flex; justify-content: center; align-items: center;">
                     <Button as="a" label="Go to pool" severity="secondary" outlined class="w-full" :href='linkToPool(pool)' target="_blank" rel="noopener" />
-                    <Button v-if='ethereum() && pool.earningsNewUsd - pool.earningsOldUsd >= 1' @click='(async () => {
+                    <Button v-if='ethereum() && pool.earningsNewUsd > pool.earningsOldUsd' @click='(async () => {
                       if (ethereum()) {
                         if (!subscribed) {
                           ethereum().on("accountsChanged", async () => {

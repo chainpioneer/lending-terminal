@@ -6,6 +6,7 @@ export enum Chains {
   SCROLL = 'SCROLL',
   FTM = 'FTM',
   BLAST = 'BLAST',
+  AVAX = 'AVAX',
   SONIC = 'SONIC',
 }
 
@@ -23,6 +24,9 @@ export enum ASSETS {
   COMP = 'COMP',
   SONIC = 'SONIC',
   VELO = 'VELO',
+  WLD = 'WLD',
+  WBTC = 'WBTC',
+  AVAX = 'AVAX',
 }
 
 export function getDiv(asset: ASSETS) {
@@ -30,6 +34,7 @@ export function getDiv(asset: ASSETS) {
     case ASSETS.USDC:
       return 10 ** 6
     case ASSETS.cbBTC:
+    case ASSETS.WBTC:
       return 10 ** 8
     default:
       return 10 ** 18
@@ -50,6 +55,9 @@ export const assetConf: { [asset in ASSETS]: { tokenId: string } } = {
   [ASSETS.COMP]: { tokenId: 'compound-governance-token' },
   [ASSETS.SONIC]: { tokenId: 'sonic-3' },
   [ASSETS.VELO]: { tokenId: 'velodrome-finance' },
+  [ASSETS.WBTC]: { tokenId: 'wrapped-bitcoin' },
+  [ASSETS.WLD]: { tokenId: 'worldcoin-wld' },
+  [ASSETS.AVAX]: { tokenId: 'avalanche-2' },
 }
 export const assetByTokenId = Object.assign(
   {},
@@ -157,7 +165,7 @@ export const CHAIN_CONF: {
     staking: {},
     aaveLendingPool: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
     compoundBorrowings: [],
-    rpcUrls: ['https://mainnet.optimism.io', 'https://1rpc.io/op'],
+    rpcUrls: ['https://gateway.tenderly.co/public/optimism', 'https://0xrpc.io/op', 'https://optimism.drpc.org', 'https://op-pokt.nodies.app'],
     chainId: 10,
     assets: {
       '0x4200000000000000000000000000000000000006': ASSETS.ETH,
@@ -238,6 +246,29 @@ export const CHAIN_CONF: {
       '0x9f04B6CEfd5BCd67d76aB708F17553Ce40188e6A': ASSETS.IBEX,
     },
   },
+  [Chains.AVAX]: {
+    borrowables: [
+      web3Inst.utils.toChecksumAddress('0xcaafc9fa9b269682daa4c23791c0956bfeea6cd1'),
+      web3Inst.utils.toChecksumAddress('0x715944d28cf27ba19ae1a6302360b71ef202a9aa'),
+      web3Inst.utils.toChecksumAddress('0x2508827cb683e92d0e569627efc68454a7dcc4a8'),
+      web3Inst.utils.toChecksumAddress('0x383646da9c7f625e96b7fb8d495d63410691e57d'),
+      web3Inst.utils.toChecksumAddress('0x5323c30556b7aebfbc8bab5f640b577828f364a7'),
+      web3Inst.utils.toChecksumAddress('0xe82b222133a8fe503ef81a921c8e62196ae5f9c4'),
+      web3Inst.utils.toChecksumAddress('0x1a88287caddd80b2406d075258e5ff0b7e5bb75e'),
+      web3Inst.utils.toChecksumAddress('0x723be15dc4409cbe5bb5ef33d5d0c5eb9e4c5ba2'),
+      web3Inst.utils.toChecksumAddress('0x3763fef23e664d708dd87779dc59e57140dcc43d'),
+    ],
+    staking: {},
+    aaveLendingPool: '',
+    compoundBorrowings: [],
+    rpcUrls: ['https://avalanche.drpc.org', 'https://0xrpc.io/avax', 'https://1rpc.io/avax/c', 'https://api.avax.network/ext/bc/C/rpc', 'https://avalanche-mainnet.gateway.tenderly.co'],
+    chainId: 43114,
+    assets: {
+      '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7': ASSETS.AVAX,
+      '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E': ASSETS.USDC,
+      '0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB': ASSETS.ETH,
+    },
+  },
   [Chains.SONIC]: {
     borrowables: [
       web3Inst.utils.toChecksumAddress('0xd12d3F128290F38eb574D58Af26B8bB1705464a8'),
@@ -256,11 +287,12 @@ export const CHAIN_CONF: {
       // web3Inst.utils.toChecksumAddress('0xcedfb59ef6f24d2c05d639d4672c6644f8e49b8a'), // toxic
       web3Inst.utils.toChecksumAddress('0x5785228ec74209fee27df324d428be92f1244b0e'),
       web3Inst.utils.toChecksumAddress('0xc2285af4f918c9bfd364cd7a5c403fba0f201a43'),
+      web3Inst.utils.toChecksumAddress('0x98d4358d95163daf6000ce035dceaf785416ffa4'),
     ],
     staking: {},
     aaveLendingPool: '',
     compoundBorrowings: [],
-    rpcUrls: ['https://rpc.soniclabs.com', 'https://sonic.drpc.org', 'https://sonic-rpc.publicnode.com', 'https://rpc.ankr.com/sonic_mainnet', 'https://blast-rpc.publicnode.com'],
+    rpcUrls: ['https://sonic.drpc.org', 'https://sonic-rpc.publicnode.com', 'https://rpc.ankr.com/sonic_mainnet', 'https://blast-rpc.publicnode.com', 'https://rpc.soniclabs.com', ],
     chainId: 146,
     assets: {
       '0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38': ASSETS.SONIC,
