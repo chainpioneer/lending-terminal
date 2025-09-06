@@ -506,7 +506,26 @@ export default async function load(users: string[]) {
       if (i !== 0 && !conf.assets[Object.keys(underlyings)[i - 1]]) {
         throw new Error(`${chain} unknown underlying ${Object.keys(underlyings)[i - 1]}`)
       }
-      const asset = i === 0 ? (chain === Chains.FTM ? ASSETS.FTM : (chain === Chains.SONIC ? ASSETS.SONIC : ASSETS.ETH)) : conf.assets[Object.keys(underlyings)[i - 1]]
+      let asset;
+
+      if (i === 0) {
+        switch (chain) {
+          case Chains.FTM:
+              asset = ASSETS.FTM
+              break
+          case Chains.SONIC:
+              asset = ASSETS.SONIC
+              break
+          case Chains.AVAX:
+              asset = ASSETS.AVAX
+              break
+          default:
+              asset = ASSETS.ETH
+              break
+        }
+      } else {
+        asset = conf.assets[Object.keys(underlyings)[i - 1]]
+      }
       const div = getDiv(asset)
       let j = 0
       for (const user of users) {
