@@ -67,7 +67,7 @@ async function multicallWithTimeout(
       console.log('eth_call failed', errCount)
       if (errCount > maxErrCount[chain]) {
         console.log(requests)
-        throw new Error(`eth_call failed ${maxErrCount} times`, { cause: e })
+        throw new Error(`eth_call failed ${maxErrCount} times ${e}`, { cause: e })
       }
     }
     if (!result) {
