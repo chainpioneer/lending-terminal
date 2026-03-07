@@ -1,16 +1,23 @@
 # Lending terminal
 
-An advanced position management terminal for lending pools
+An advanced position management terminal for DeFi lending pools across multiple EVM chains.
 
-Features: 
-- Shows current and virtual (that can be applied onchain) APR of pools
-- Allows users to `sync` interest rates. The button becomes active when your daily earnings delta of the pool reaches 1$.
-- Shows combined data across multiple chains. SCROLL, OP, BASE, FTM and re.al (with USDC, ETH, wstETH, OP, FTM and IBEX pools) are supported.
+## Features
+
+- Shows current and virtual (that can be applied onchain) APR of pools.
+- Deposit and withdraw directly from the app via wallet integration (Rabby, MetaMask, etc.).
+- Shows combined data across multiple chains: BASE, OP, AVAX, SONIC, and WLD.
+- Supports multiple lending protocols: Impermax, Tarot, AAVE, Compound, and Morpho.
+- Tracked assets include USDC, ETH, wstETH, cbBTC, cbETH, AERO, OP, OX, COMP, SONIC, VELO, WLD, WBTC, and AVAX.
+- Aggregated stats by asset and by chain, with per-address breakdowns.
+- Merkl reward tracking for Morpho vaults.
 - The app has no own backend and RPC requests are highly optimized. It's only 5 calls per chain to fetch all onchain data.
-- Coingecko API is used to fetch assets prices.
-- Current list of supported borrowables: [constants.ts](src/constants/constants.ts).
-- Shows pools sorted by APR, but only those pools that either your address has a stake in or are highly-utilized with good APR.
-- It's possible to show combined stats of multiple addresses. Just use coma separate addresses in the input field.
-- Stores input addresses in localstorage.
+- CoinGecko API is used to fetch asset prices.
+- Shows pools sorted by APR, filtered to those where your address has a stake or that meet APR/TVL thresholds.
+- Supports tracking combined stats of multiple addresses (comma-separated in the input field).
+- Stores input addresses in localStorage.
+- Current list of supported pools: [constants.ts](src/constants/constants.ts).
 
-Stack: Vue 3 + TypeScript + Vite
+## Stack
+
+Vue 3 + TypeScript + Vite + PrimeVue

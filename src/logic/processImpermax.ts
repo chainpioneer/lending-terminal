@@ -105,7 +105,6 @@ export function processBorrowables(
     let stakingDailyEarningsUsd = 0
     let stakingAPR = 0
     let stakingDailyEarnings = 0
-    let totalStakedUsd = 0
     let stakingRewardAsset: string = ''
 
     const suppliedUsd = Number(((newUserSupplied * getAssetPrice(asset)) / div).toFixed(2))
@@ -121,7 +120,7 @@ export function processBorrowables(
         const yearlyRewardUsd =
           (Number(rewardRate * 24n * 3600n * 365n) / _div) * getAssetPrice(stakingRewardAsset as ASSETS)
         stakingDailyYield = (rewardRate * 24n * 3600n * stakedBalance) / totalSupply
-        totalStakedUsd = (Number((totalSupply * newExchangeRate) / ONE) / div) * getAssetPrice(asset)
+        const totalStakedUsd = (Number((totalSupply * newExchangeRate) / ONE) / div) * getAssetPrice(asset)
         stakingAPR = Number(((yearlyRewardUsd * 100) / totalStakedUsd).toFixed(2))
       }
       stakingPoolCursor++
@@ -150,12 +149,12 @@ export function processBorrowables(
       vaultBalanceAfterReinvestByVault[v] === pastVaultStateByBorrowable[b].totalBalance
         ? false
         : vaultBalanceAfterReinvestByVault[v] > pastVaultStateByBorrowable[b].totalBalance
-        ? ((vaultBalanceAfterReinvestByVault[v] - pastVaultStateByBorrowable[b].totalBalance) * 100n) /
-            pastVaultStateByBorrowable[b].totalBalance >
-          8n
-        : ((pastVaultStateByBorrowable[b].totalBalance - vaultBalanceAfterReinvestByVault[v]) * 100n) /
-            vaultBalanceAfterReinvestByVault[v] >
-          8n
+          ? ((vaultBalanceAfterReinvestByVault[v] - pastVaultStateByBorrowable[b].totalBalance) * 100n) /
+              pastVaultStateByBorrowable[b].totalBalance >
+            8n
+          : ((pastVaultStateByBorrowable[b].totalBalance - vaultBalanceAfterReinvestByVault[v]) * 100n) /
+              vaultBalanceAfterReinvestByVault[v] >
+            8n
     const vaultAPR = bigBalanceChange
       ? 'unknown'
       : Number(
@@ -207,6 +206,7 @@ export function processBorrowables(
       chain,
       underlying,
       exchangeRate: newExchangeRate,
+      cashBN: newTotalBalance,
     })
 
     populateCumulativeByAsset(

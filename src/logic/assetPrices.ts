@@ -1,25 +1,22 @@
-import axios from "axios";
-import {assetByTokenId, assetConf, ASSETS} from "../constants/constants";
+import axios from 'axios'
 
+import { assetByTokenId, assetConf, ASSETS } from '../constants/constants'
 
 const assetPrices: { [key: string]: number } = {
   [ASSETS.USDC]: 1.0,
 }
 
-const tokenIds = Object.values(assetConf).map(({tokenId}) => {
+const tokenIds = Object.values(assetConf).map(({ tokenId }) => {
   return tokenId
 })
 
-function updatePrice() {
-  return new Promise(async (resolve) => {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${tokenIds.join(',')}&vs_currencies=usd`
-    const { data } = await axios.get(url)
-    for (const tokenId in data) {
-      const asset = assetByTokenId[tokenId]
-      assetPrices[asset] = data[tokenId].usd
-      resolve(true)
-    }
-  })
+async function updatePrice() {
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${tokenIds.join(',')}&vs_currencies=usd`
+  const { data } = await axios.get(url)
+  for (const tokenId in data) {
+    const asset = assetByTokenId[tokenId]
+    assetPrices[asset] = data[tokenId].usd
+  }
 }
 
 let pricePromise = updatePrice()

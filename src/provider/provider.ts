@@ -67,7 +67,7 @@ async function multicallWithTimeout(
       console.log('eth_call failed', errCount)
       if (errCount > maxErrCount[chain]) {
         console.log(requests)
-        throw new Error(`eth_call failed ${maxErrCount} times`)
+        throw new Error(`eth_call failed ${maxErrCount} times`, { cause: e })
       }
     }
     if (!result) {
@@ -108,7 +108,7 @@ export async function web3EthCall(chain: Chains, method: string, params: any[], 
       const result = timeout
         ? await Promise.race([(web3.eth as any)[method](...params), sleep(timeout)])
         : await (web3.eth as any)[method](...params)
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
       if (result === undefined) {
         // console.log({ method, params, timeout })
         if (timeout) throw new Error(`timeout ${timeout / 1000}s`)

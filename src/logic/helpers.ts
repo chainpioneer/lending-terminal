@@ -46,7 +46,7 @@ const LIQUIDATION_THRESHOLD_START_BIT_POSITION = 16n
 
 export function getLiquidationThreshold(configuration: bigint): number {
   console.log('configuration', configuration)
-  // eslint-disable-next-line no-bitwise
+
   return Number((configuration & ~LIQUIDATION_THRESHOLD_MASK) >> LIQUIDATION_THRESHOLD_START_BIT_POSITION)
 }
 

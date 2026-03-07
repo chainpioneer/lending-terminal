@@ -58,4 +58,5 @@ export type Pool = {
   stable: boolean
   underlying: string
   exchangeRate: bigint
+  cashBN: bigint
 }

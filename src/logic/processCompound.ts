@@ -1,5 +1,4 @@
-import { Contract } from 'ethcall'
-import { Call } from 'ethcall'
+import { Call, Contract } from 'ethcall'
 
 import { ASSETS, Chains, getDiv } from '../constants/constants'
 import { accumulateDeposit, accumulateUsd, toDeposit } from '../utils/depositUtils'
@@ -98,7 +97,11 @@ export function processCompoundCollateral(
         if (bn > 0) {
           populateCumulativeByAsset(ctx.cumulativeValuesByAsset, asset, Number(bn), Number(bn), 0, 0, 0)
           console.log('compound deposit', ctx.compoundBorrowingInfo[chain][address].collaterals[collateral][u].usd)
-          accumulateUsd(ctx.suppliedByUser, [u], ctx.compoundBorrowingInfo[chain][address].collaterals[collateral][u].usd)
+          accumulateUsd(
+            ctx.suppliedByUser,
+            [u],
+            ctx.compoundBorrowingInfo[chain][address].collaterals[collateral][u].usd,
+          )
           accumulateDeposit(ctx.suppliedByAssetByUser, [asset, u], bn, div, asset)
         }
       })

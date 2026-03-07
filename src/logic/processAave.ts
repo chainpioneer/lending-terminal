@@ -76,7 +76,9 @@ export function processAaveBalances(
           )
           if (ctx.aavePositions[u + chain].borrowedTotalUsd !== 0) {
             ctx.aavePositions[u + chain].healthFactor = Number(
-              (ctx.aavePositions[u + chain].collateralizationUsd / ctx.aavePositions[u + chain].borrowedTotalUsd).toFixed(2),
+              (
+                ctx.aavePositions[u + chain].collateralizationUsd / ctx.aavePositions[u + chain].borrowedTotalUsd
+              ).toFixed(2),
             )
           }
           accumulateDeposit(ctx.aavePositions[u + chain].collaterals, [asset], aBalance, div, asset)
@@ -118,7 +120,8 @@ export function processAaveBalances(
         const earnings = Number(
           (
             Number(
-              (ctx.aaveReserveData[chain][reserve][2] * ctx.aaveABalancesByChainByAssetAddress[chain][reserve].bn) / 365n,
+              (ctx.aaveReserveData[chain][reserve][2] * ctx.aaveABalancesByChainByAssetAddress[chain][reserve].bn) /
+                365n,
             ) / 1e27
           ).toFixed(2),
         )
@@ -141,7 +144,9 @@ export function processAaveBalances(
             (ctx.aavePositions[u + chain].borrowedTotalUsd + usd).toFixed(2),
           )
           ctx.aavePositions[u + chain].healthFactor = Number(
-            (ctx.aavePositions[u + chain].collateralizationUsd / ctx.aavePositions[u + chain].borrowedTotalUsd).toFixed(2),
+            (ctx.aavePositions[u + chain].collateralizationUsd / ctx.aavePositions[u + chain].borrowedTotalUsd).toFixed(
+              2,
+            ),
           )
           ctx.aavePositions[u + chain].spendings = Number(
             (ctx.aavePositions[u + chain].spendings + spendingsUsd / 365).toFixed(2),
@@ -173,12 +178,7 @@ export function processAaveBalances(
   })
 }
 
-export function buildAavePools(
-  ctx: LoadContext,
-  chain: Chains,
-  conf: ChainConf,
-  assetAddressesOnAAVE: string[],
-) {
+export function buildAavePools(ctx: LoadContext, chain: Chains, conf: ChainConf, assetAddressesOnAAVE: string[]) {
   assetAddressesOnAAVE.forEach((aaveAsset: string) => {
     const asset = conf.assets[aaveAsset]
     const div = getDiv(asset)
@@ -190,7 +190,8 @@ export function buildAavePools(
     const earnings = Number(
       (
         Number(
-          (ctx.aaveReserveData[chain][aaveAsset][2] * ctx.aaveABalancesByChainByAssetAddress[chain][aaveAsset].bn) / 365n,
+          (ctx.aaveReserveData[chain][aaveAsset][2] * ctx.aaveABalancesByChainByAssetAddress[chain][aaveAsset].bn) /
+            365n,
         ) / 1e27
       ).toFixed(2),
     )
@@ -226,6 +227,7 @@ export function buildAavePools(
       chain,
       underlying: '',
       exchangeRate: 0n,
+      cashBN: 0n,
     })
   })
 }

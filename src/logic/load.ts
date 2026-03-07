@@ -26,8 +26,8 @@ import ONE from '../utils/ONE'
 import { getAssetPrice, waitForPrices } from './assetPrices'
 import { formatStats, sortByUserDeposit, sortByUserSimple } from './helpers'
 import { createLoadContext } from './loadContext'
-import { processAaveBalances, buildAavePools } from './processAave'
-import { parseCompoundCall2Data, processCompoundCollateral, buildCompoundPositions } from './processCompound'
+import { buildAavePools, processAaveBalances } from './processAave'
+import { buildCompoundPositions, parseCompoundCall2Data, processCompoundCollateral } from './processCompound'
 import { processBorrowables, processCollateralPositions } from './processImpermax'
 import { parseMorphoCall1Data, processMorphoRewardsAndPools } from './processMorpho'
 
@@ -59,7 +59,8 @@ export default async function load(users: string[]) {
     const blockStruct = await web3EthCall(chain, 'getBlock', ['latest', false])
     const currentBlockNumber = Number(blockStruct.number)
     console.log(chain, 'block number', currentBlockNumber)
-    const pastBlockNumber = currentBlockNumber - (chain === Chains.SONIC ? SONIC_PAST_BLOCK_OFFSET : DEFAULT_PAST_BLOCK_OFFSET)
+    const pastBlockNumber =
+      currentBlockNumber - (chain === Chains.SONIC ? SONIC_PAST_BLOCK_OFFSET : DEFAULT_PAST_BLOCK_OFFSET)
     const blockTimestamp = Number(blockStruct.timestamp)
     const conf = CHAIN_CONF[chain as Chains]
 
@@ -161,7 +162,7 @@ export default async function load(users: string[]) {
       })
     })
 
-    let stakingPoolCursor = 0
+    const stakingPoolCursor = 0
 
     const borrowableCallCount =
       conf.borrowables.length * callsPerBor + Object.keys(conf.staking).length * callsPerStakingPool
@@ -262,7 +263,16 @@ export default async function load(users: string[]) {
 
     // === Parse compound call2 data ===
     let skipCount = Object.keys(collateralMap).length * callsPerCol
-    skipCount = parseCompoundCall2Data(ctx, chain, conf, users, call2Data, skipCount, compoundBorrowings, lendingProtocolCalls)
+    skipCount = parseCompoundCall2Data(
+      ctx,
+      chain,
+      conf,
+      users,
+      call2Data,
+      skipCount,
+      compoundBorrowings,
+      lendingProtocolCalls,
+    )
 
     // === Parse AAVE call2 data ===
     const userEMode: { [user: string]: number } = {}
@@ -291,9 +301,9 @@ export default async function load(users: string[]) {
     })
 
     // === Parse morpho call1 data ===
-    let callIndex = borrowableCallCount + conf.compoundBorrowings.length * 5 + (conf.aaveLendingPool ? 1 : 0)
+    const callIndex = borrowableCallCount + conf.compoundBorrowings.length * 5 + (conf.aaveLendingPool ? 1 : 0)
     if (conf.morpho) {
-      callIndex = parseMorphoCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, callIndex)
+      parseMorphoCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, callIndex)
     }
 
     console.log('calling call3', chain)
@@ -358,7 +368,15 @@ export default async function load(users: string[]) {
     // === Process morpho rewards and build morpho pools ===
     if (conf.morpho) {
       cursor = await processMorphoRewardsAndPools(
-        ctx, chain, conf, call3Data, cursor, blockTimestamp, timestamp, currentBlockNumber, pastBlockNumber,
+        ctx,
+        chain,
+        conf,
+        call3Data,
+        cursor,
+        blockTimestamp,
+        timestamp,
+        currentBlockNumber,
+        pastBlockNumber,
       )
     }
 
@@ -422,9 +440,6 @@ export default async function load(users: string[]) {
 
       if (i === 0) {
         switch (chain) {
-          case Chains.FTM:
-            asset = ASSETS.FTM
-            break
           case Chains.SONIC:
             asset = ASSETS.SONIC
             break
@@ -461,22 +476,55 @@ export default async function load(users: string[]) {
     buildCompoundPositions(ctx, chain)
 
     // === Process AAVE balances and positions ===
-    processAaveBalances(ctx, chain, conf, users, assetAddressesOnAAVE, dataFromCall4, skipCount, userEMode, eModeLiqThreshold)
+    processAaveBalances(
+      ctx,
+      chain,
+      conf,
+      users,
+      assetAddressesOnAAVE,
+      dataFromCall4,
+      skipCount,
+      userEMode,
+      eModeLiqThreshold,
+    )
 
     // === Process Impermax/Tarot borrowables ===
     const aprByVault = processBorrowables(
-      ctx, chain, conf, users, call1Data, callsPerBor, callsPerStakingPool, stakingPoolCursor,
-      blockTimestamp, pastVaultStateByBorrowable, vaultOrLPByBor, stableByBor,
-      collateralByBorrowable, collateralToBorrowables, symbolByBorrowable,
-      vaultExchangeRateAfterReinvestByVault, vaultBalanceAfterReinvestByVault,
+      ctx,
+      chain,
+      conf,
+      users,
+      call1Data,
+      callsPerBor,
+      callsPerStakingPool,
+      stakingPoolCursor,
+      blockTimestamp,
+      pastVaultStateByBorrowable,
+      vaultOrLPByBor,
+      stableByBor,
+      collateralByBorrowable,
+      collateralToBorrowables,
+      symbolByBorrowable,
+      vaultExchangeRateAfterReinvestByVault,
+      vaultBalanceAfterReinvestByVault,
     )
 
     // === Process collateral positions (LP positions) ===
     processCollateralPositions(
-      ctx, conf, users, collateralMap, balanceByCollateralByUser,
-      exchangeRateByCollateral, vaultByCollateral, vaultExchangeRateAfterReinvestByVault,
-      borrowableToUnderlying, collateralToBorrowables, symbolByBorrowable,
-      reservesByVault, lpSupplyByVault, aprByVault,
+      ctx,
+      conf,
+      users,
+      collateralMap,
+      balanceByCollateralByUser,
+      exchangeRateByCollateral,
+      vaultByCollateral,
+      vaultExchangeRateAfterReinvestByVault,
+      borrowableToUnderlying,
+      collateralToBorrowables,
+      symbolByBorrowable,
+      reservesByVault,
+      lpSupplyByVault,
+      aprByVault,
     )
 
     // === Build AAVE pool entries ===
@@ -528,7 +576,7 @@ export default async function load(users: string[]) {
                   ctx.chainAggregatedStats[c].newUserSuppliedUsd
                 ).toFixed(2),
               )
-        if (aca.newUserSuppliedUsd + ctx.idleBalancesByChain[c][a].usd === 0) {
+        if (aca.newUserSuppliedUsd + (ctx.idleBalancesByChain[c]?.[a]?.usd ?? 0) === 0) {
           delete ctx.cumulativeValuesByChains[c][a]
         }
       }
@@ -652,9 +700,7 @@ export default async function load(users: string[]) {
     delete ctx.aavePositions[x]
     ctx.aavePositions[x] = val
   })
-
   ;[ctx.idleBalancesByAssetByUser, ctx.suppliedByAssetByUser].forEach((userMap) => {
-    // eslint-disable-next-line no-unused-vars
     Object.entries(userMap).forEach(([_, byUser]) => {
       sortByUserDeposit(byUser)
     })
@@ -681,7 +727,9 @@ export default async function load(users: string[]) {
     .filter((x) => {
       const good =
         x.suppliedUsd > 1 ||
-        (x.stakingAPR + x.aprNew > POOL_FILTER_APR_THRESHOLD && x.availableToDepositUsd > POOL_FILTER_CAPACITY_THRESHOLD && x.tvlUsd > POOL_FILTER_MIN_TVL)
+        (x.stakingAPR + x.aprNew > POOL_FILTER_APR_THRESHOLD &&
+          x.availableToDepositUsd > POOL_FILTER_CAPACITY_THRESHOLD &&
+          x.tvlUsd > POOL_FILTER_MIN_TVL)
       if (good) {
         poolChains[x.chain] = true
         poolAssets[x.asset] = true

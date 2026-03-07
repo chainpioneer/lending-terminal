@@ -1,34 +1,27 @@
 import { ASSETS, Chains } from '../constants/constants'
 
 export const chainIdByChain: { [ch in Chains]: string } = {
-  [Chains.SCROLL]: '0x82750',
   [Chains.OP]: '0xa',
-  [Chains.FTM]: '0xfa',
-  [Chains.BLAST]: '0x13e31',
   [Chains.BASE]: '0x2105',
   [Chains.SONIC]: '0x92',
   [Chains.AVAX]: '0xa86a',
   [Chains.WLD]: '0x1e0',
 }
 
+const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains'
+
 export function chainImgSrc(ch: number | string) {
   switch (ch) {
-    case Chains.FTM:
-      return 'https://res.coinpaper.com/coinpaper/fantom_ftm_logo_5b62819c57.png'
-    case Chains.BLAST:
-      return 'https://cdn.prod.website-files.com/65a6baa1a3f8ed336f415cb4/65a6cc95aae1066cf96d497d_Logo%20Black%20on%20Yellow%20Background%402x.png'
     case Chains.BASE:
-      return 'https://avatars.githubusercontent.com/u/108554348?v=4'
+      return `${TW}/base/info/logo.png`
     case Chains.OP:
-      return 'https://zengo.com/wp-content/uploads/Optimism.png'
-    case Chains.SCROLL:
-      return 'https://img.cryptorank.io/coins/scroll1693474620599.png'
+      return `${TW}/optimism/info/logo.png`
     case Chains.SONIC:
-      return 'https://img.cryptorank.io/coins/sonic1722608075138.png'
+      return 'https://coin-images.coingecko.com/coins/images/38108/small/200x200_Sonic_Logo.png'
     case Chains.AVAX:
-      return 'https://static.vecteezy.com/system/resources/previews/011/307/278/non_2x/avalanche-avax-badge-crypto-isolated-on-white-background-blockchain-technology-3d-rendering-free-png.png'
+      return `${TW}/avalanchec/info/logo.png`
     case Chains.WLD:
-      return 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMnTSr79HmlkL1WANLFB9i-dbM8Y-PpPxnEQ&s'
+      return 'https://assets.coingecko.com/coins/images/31069/standard/worldcoin.jpeg'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -36,8 +29,6 @@ export function chainImgSrc(ch: number | string) {
 
 export function assetImgSrc(asset: number | string) {
   switch (asset) {
-    case ASSETS.FTM:
-      return chainImgSrc(Chains.FTM)
     case ASSETS.AVAX:
       return chainImgSrc(Chains.AVAX)
     case ASSETS.WLD:
@@ -48,22 +39,26 @@ export function assetImgSrc(asset: number | string) {
       return chainImgSrc(Chains.OP)
     case ASSETS.SONIC:
       return chainImgSrc(Chains.SONIC)
-    case ASSETS.IBEX:
-      return 'https://icons.llama.fi/impermax-finance.png'
     case ASSETS.wstETH:
-      return 'https://assets.gemwallet.com/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png'
+      return `${TW}/ethereum/assets/0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0/logo.png`
     case ASSETS.USDC:
-      return 'https://png.pngtree.com/png-vector/20220709/ourmid/pngtree-usd-coin-usdc-digital-stablecoin-icon-technology-pay-web-vector-png-image_37843734.png'
+      return `${TW}/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png`
     case ASSETS.cbBTC:
-      return 'https://s2.coinmarketcap.com/static/img/coins/200x200/32731.png'
+      return 'https://assets.coingecko.com/coins/images/40143/standard/cbbtc.webp'
     case ASSETS.cbETH:
-      return 'https://res.coinpaper.com/coinpaper/cbeth_kfal8a.png'
+      return `${TW}/ethereum/assets/0xBe9895146f7AF43049ca1c1AE358B0541Ea49704/logo.png`
     case ASSETS.AERO:
-      return 'https://s2.coinmarketcap.com/static/img/coins/200x200/29270.png'
+      return 'https://assets.coingecko.com/coins/images/31745/standard/token.png'
     case ASSETS.VELO:
-      return 'https://img.cryptorank.io/exchanges/150x150.velodrome_v_21704966248564.png'
+      return 'https://assets.coingecko.com/coins/images/25783/standard/velo.png'
     case ASSETS.ETH:
-      return 'https://seeklogo.com/images/E/ethereum-logo-EC6CDBA45B-seeklogo.com.png'
+      return `${TW}/ethereum/info/logo.png`
+    case ASSETS.OX:
+      return 'https://assets.coingecko.com/coins/images/33849/standard/ox_logo.png'
+    case ASSETS.COMP:
+      return `${TW}/ethereum/assets/0xc00e94Cb662C3520282E6f5717214004A7f26888/logo.png`
+    case ASSETS.WBTC:
+      return `${TW}/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png`
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -72,13 +67,13 @@ export function assetImgSrc(asset: number | string) {
 export function platformImgSrc(platform: string) {
   switch (platform) {
     case 'Impermax':
-      return assetImgSrc(ASSETS.IBEX)
+      return 'https://icons.llama.fi/impermax-finance.png'
     case 'Tarot':
       return 'https://www.tarot.to/favicon.ico'
     case 'MORPHO':
-      return 'https://s2.coinmarketcap.com/static/img/coins/200x200/34104.png'
+      return 'https://assets.coingecko.com/coins/images/38636/standard/morpho.jpeg'
     case 'AAVE':
-      return 'https://cdn.freelogovectors.net/wp-content/uploads/2021/12/aavelogo-freelogovectors.net_.png'
+      return 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -92,14 +87,8 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
         case Chains.BASE:
           chainId = '8453'
           break
-        case Chains.SCROLL:
-          chainId = '534352'
-          break
         case Chains.OP:
           chainId = '10'
-          break
-        case Chains.FTM:
-          chainId = '250'
           break
         case Chains.SONIC:
           chainId = '146'
@@ -121,17 +110,8 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
         case Chains.BASE:
           chainPrefix = 'base'
           break
-        case Chains.SCROLL:
-          chainPrefix = 'scroll'
-          break
         case Chains.OP:
           chainPrefix = 'optimism'
-          break
-        case Chains.FTM:
-          chainPrefix = 'fantom'
-          break
-        case Chains.BLAST:
-          chainPrefix = 'blast'
           break
         case Chains.SONIC:
           chainPrefix = 'sonic'
@@ -142,16 +122,15 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
         default:
           throw new Error(`unknown chain ${pool.chain}`)
       }
-      return `https://${chainPrefix}.impermax.finance/lending-pool/${typeof pool.stable === 'boolean' ? (pool.stable ? '7' : '6') : '4'}/${pool.vault.toLowerCase()}`
+      return `https://${chainPrefix}.impermax.finance/lending-pool/${
+        typeof pool.stable === 'boolean' ? (pool.stable ? '7' : '6') : '4'
+      }/${pool.vault.toLowerCase()}`
     }
     case 'AAVE': {
       let chainName
       switch (pool.chain) {
         case Chains.BASE:
           chainName = 'base'
-          break
-        case Chains.SCROLL:
-          chainName = 'scroll'
           break
         case Chains.OP:
           chainName = 'optimism'
@@ -183,17 +162,8 @@ export function linkToExplorer(pool: { chain: Chains; borrowable: string }) {
     case Chains.BASE:
       chainPrefix = 'basescan.org'
       break
-    case Chains.SCROLL:
-      chainPrefix = 'scrollscan.com'
-      break
     case Chains.OP:
       chainPrefix = 'optimistic.etherscan.io'
-      break
-    case Chains.FTM:
-      chainPrefix = 'ftmscan.com'
-      break
-    case Chains.BLAST:
-      chainPrefix = 'blastscan.io'
       break
     case Chains.SONIC:
       chainPrefix = 'sonicscan.org'

@@ -5,7 +5,9 @@ import { ref } from 'vue'
 defineProps<{ showBreakdown?: boolean }>()
 
 const popover = ref()
-function toggle(event: any) { popover.value?.toggle(event) }
+function toggle(event: any) {
+  popover.value?.toggle(event)
+}
 </script>
 
 <template>
@@ -19,5 +21,7 @@ function toggle(event: any) { popover.value?.toggle(event) }
 </template>
 
 <style scoped>
-label { cursor: pointer }
+label {
+  cursor: pointer;
+}
 </style>

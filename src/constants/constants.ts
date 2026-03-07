@@ -3,9 +3,6 @@ import Web3 from 'web3'
 export enum Chains {
   BASE = 'BASE',
   OP = 'OP',
-  SCROLL = 'SCROLL',
-  FTM = 'FTM',
-  BLAST = 'BLAST',
   AVAX = 'AVAX',
   SONIC = 'SONIC',
   WLD = 'WLD',
@@ -14,13 +11,11 @@ export enum Chains {
 export enum ASSETS {
   USDC = 'USDC',
   ETH = 'ETH',
-  FTM = 'FTM',
   wstETH = 'wstETH',
   cbBTC = 'cbBTC',
   cbETH = 'cbETH',
   AERO = 'AERO',
   OP = 'OP',
-  IBEX = 'IBEX',
   OX = 'OX',
   COMP = 'COMP',
   SONIC = 'SONIC',
@@ -45,12 +40,10 @@ export function getDiv(asset: ASSETS) {
 export const assetConf: { [asset in ASSETS]: { tokenId: string } } = {
   [ASSETS.USDC]: { tokenId: 'usd-coin' },
   [ASSETS.ETH]: { tokenId: 'weth' },
-  [ASSETS.FTM]: { tokenId: 'wrapped-fantom' },
   [ASSETS.wstETH]: { tokenId: 'wrapped-steth' },
   [ASSETS.cbBTC]: { tokenId: 'coinbase-wrapped-btc' },
   [ASSETS.cbETH]: { tokenId: 'coinbase-wrapped-staked-eth' },
   [ASSETS.OP]: { tokenId: 'optimism' },
-  [ASSETS.IBEX]: { tokenId: 'impermax-2' },
   [ASSETS.OX]: { tokenId: 'ox-fun' },
   [ASSETS.AERO]: { tokenId: 'aerodrome-finance' },
   [ASSETS.COMP]: { tokenId: 'compound-governance-token' },
@@ -60,7 +53,7 @@ export const assetConf: { [asset in ASSETS]: { tokenId: string } } = {
   [ASSETS.WLD]: { tokenId: 'worldcoin-wld' },
   [ASSETS.AVAX]: { tokenId: 'avalanche-2' },
 }
-export const POOL_FILTER_APR_THRESHOLD = 8
+export const POOL_FILTER_APR_THRESHOLD = 2
 export const POOL_FILTER_CAPACITY_THRESHOLD = -1
 export const POOL_FILTER_MIN_TVL = 1_000
 export const SONIC_PAST_BLOCK_OFFSET = 1_000
@@ -195,95 +188,6 @@ export const CHAIN_CONF: {
       '0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db': ASSETS.VELO,
     },
   },
-  [Chains.SCROLL]: {
-    borrowables: [
-      web3Inst.utils.toChecksumAddress('0x261c172cba86b745c46060f856a64bd2dd9d2fd0'),
-      // web3Inst.utils.toChecksumAddress('0x56F98d1f75a6345312bf46FDb48aB4728Ff25aDf'), // TKN/USDC toxic
-      web3Inst.utils.toChecksumAddress('0x5fcB13b257bFB6A4Fdd4A263CBbfcF487FAd6aa3'),
-      web3Inst.utils.toChecksumAddress('0x48305bF15D7002b07f94F52265bdFee36cAA84EA'),
-      web3Inst.utils.toChecksumAddress('0x6bb698fcfec8BC3cfF098Fef50e48A3712cb5F2B'),
-      web3Inst.utils.toChecksumAddress('0x89B3935F37127294c1C100D159C0849e2f58104A'),
-      web3Inst.utils.toChecksumAddress('0x79e7674413855e01690cc7e078d64a71c1cf44c6'),
-      web3Inst.utils.toChecksumAddress('0x8509212569bbAcFD254753257Ed6f01010B96D6b'),
-      web3Inst.utils.toChecksumAddress('0xf92Fe79d269C3C315973dFcda7D748B1e506991B'),
-      // web3Inst.utils.toChecksumAddress('0x382B611B67169Da69D5073746b4EF94cd45Ef620'), // USDC/CHI toxic
-      web3Inst.utils.toChecksumAddress('0x38581cD06888569e157ae68d8DF64bD4f48B9eb1'),
-      web3Inst.utils.toChecksumAddress('0xD620aDF0B665De2604acC976fD962E4C33dAb398'),
-    ],
-    staking: {},
-    aaveLendingPool: '0x11fCfe756c05AD438e312a7fd934381537D3cFfe',
-    compoundBorrowings: [],
-    rpcUrls: ['https://rpc.scroll.io', 'https://1rpc.io/scroll', 'https://rpc.ankr.com/scroll'],
-    chainId: 534352,
-    assets: {
-      '0x5300000000000000000000000000000000000004': ASSETS.ETH,
-      '0xf610A9dfB7C89644979b4A0f27063E9e7d7Cda32': ASSETS.wstETH,
-      '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4': ASSETS.USDC,
-      '0x78Ab77F7D590FB101AA18affc238cbfEA31EAd5b': ASSETS.IBEX,
-    },
-  },
-  [Chains.FTM]: {
-    borrowables: [
-      web3Inst.utils.toChecksumAddress('0x9691e8e395b9464f09f486100f5c8ef0136f1fa0'),
-      web3Inst.utils.toChecksumAddress('0xb18b1a77b4c36fae9692a5b02bc4b9df4282396c'),
-      web3Inst.utils.toChecksumAddress('0xf7d5b28eb3f77a2c0345cbcf73f698837c3223dc'),
-      web3Inst.utils.toChecksumAddress('0x9351d443baa89c1597d032557d66a49bfc32c47e'),
-      web3Inst.utils.toChecksumAddress('0x948fa788924e8e2a211b22bc0a04c6702c5905f5'),
-      web3Inst.utils.toChecksumAddress('0x92ef7a8bbd2911be251452a3147a5505ad8fa08f'),
-      web3Inst.utils.toChecksumAddress('0xa5aaa4d6d52e8ab2ef7a6398db552d14b80a6b1f'),
-      web3Inst.utils.toChecksumAddress('0x904458d79424d2353e8d93e2cc9dfb4e04629794'),
-      web3Inst.utils.toChecksumAddress('0xbe5f69e03c7a38e277ff4b0e270e095bdca47bb6'),
-      web3Inst.utils.toChecksumAddress('0x388e0f873ea0d301223d027394f2e8272a38437a'),
-      web3Inst.utils.toChecksumAddress('0x7a3c737368d9ab8f00e19fe58cdad7aed586cd49'),
-      web3Inst.utils.toChecksumAddress('0xab0de337fe170bb8c8d88664641402b1da410cd7'),
-    ],
-    staking: {},
-    aaveLendingPool: '',
-    compoundBorrowings: [],
-    rpcUrls: [
-      'https://rpc3.fantom.network',
-      'https://fantom-json-rpc.stakely.io',
-      'https://fantom-mainnet.public.blastapi.io',
-      'https://endpoints.omniatech.io/v1/fantom/mainnet/public',
-      'https://fantom.drpc.org',
-      'https://1rpc.io/ftm',
-      'https://rpc.ftm.tools',
-      'https://rpc.fantom.network',
-      'https://rpc.ankr.com/fantom',
-      'https://rpcapi.fantom.network',
-      'https://rpc2.fantom.network',
-    ],
-    chainId: 250,
-    assets: {
-      '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83': ASSETS.FTM,
-    },
-  },
-  [Chains.BLAST]: {
-    borrowables: [
-      web3Inst.utils.toChecksumAddress('0xb58c30Ef2681eFEaF7Cb5d6D9840Ab43b36Ba51E'),
-      web3Inst.utils.toChecksumAddress('0xcb091A9a8448210D228dAA804982fA67f4828D5C'),
-      web3Inst.utils.toChecksumAddress('0x83fAE96f26eeD6974E3EaaEDDAadD82ae50c87a7'),
-      web3Inst.utils.toChecksumAddress('0x8651eC5328F3D877B7bB73191EaB75baA2Ca0bab'),
-      web3Inst.utils.toChecksumAddress('0x8372eea5de4b4dc7a3964b37c7a2805634f3a172'),
-      web3Inst.utils.toChecksumAddress('0x8ac703480fddcc4551236cdb34febafecfe13877'),
-    ],
-    staking: {},
-    aaveLendingPool: '',
-    compoundBorrowings: [],
-    rpcUrls: [
-      'https://rpc.blast.io',
-      'https://endpoints.omniatech.io/v1/blast/mainnet/public',
-      'https://rpc.ankr.com/blast',
-      'https://blast.din.dev/rpc',
-      'https://blast-rpc.publicnode.com',
-      'https://blast.din.dev/rpc',
-    ],
-    chainId: 81457,
-    assets: {
-      '0x4300000000000000000000000000000000000004': ASSETS.ETH,
-      '0x9f04B6CEfd5BCd67d76aB708F17553Ce40188e6A': ASSETS.IBEX,
-    },
-  },
   [Chains.AVAX]: {
     borrowables: [
       web3Inst.utils.toChecksumAddress('0xcaafc9fa9b269682daa4c23791c0956bfeea6cd1'),
@@ -358,7 +262,7 @@ export const CHAIN_CONF: {
     compoundBorrowings: [],
     morpho: {
       MORPHO: '0xE741BC7c34758b4caE05062794E8Ae24978AF432',
-      pools: ['0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B'],
+      pools: ['0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B', '0x0Db7E405278c2674F462aC9D9eb8b8346D1c1571'],
       borrowings: [
         // '0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B'
       ],

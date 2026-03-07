@@ -99,12 +99,8 @@ export async function processMorphoRewardsAndPools(
     const poolInfo = ctx.morphoPoolInfo[chain][pool]
 
     if (merkleChainData) {
-      const isPoolIntegrated: { [pool: string]: true } = {}
-      conf.morpho!.pools.forEach((poolAddr) => {
-        isPoolIntegrated[poolAddr] = true
-      })
       merkleChainData.forEach((oppData: any) => {
-        if (!isPoolIntegrated[oppData.identifier]) return
+        if (oppData.identifier !== pool) return
         oppData.rewardsRecord.breakdowns.forEach((rewardBreakdown: any) => {
           if (!conf.assets[rewardBreakdown.token.address]) {
             console.log('skipping unknown reward token on Merkle', rewardBreakdown.token.address)
@@ -125,7 +121,13 @@ export async function processMorphoRewardsAndPools(
           stakingDailyEarningsUsd += dailyEarnings * assetPrice
         })
       })
-      accumulateDeposit(ctx.morphoRewardsByAsset, [poolInfo.asset], stakingDailyEarningsBN, 1e18, stakingRewardAsset as ASSETS)
+      accumulateDeposit(
+        ctx.morphoRewardsByAsset,
+        [poolInfo.asset],
+        stakingDailyEarningsBN,
+        1e18,
+        stakingRewardAsset as ASSETS,
+      )
       stakingAPR = (stakingDailyEarningsUsd * 365 * 100) / poolInfo.aggregatedDeposit.usd
     }
 
@@ -133,18 +135,30 @@ export async function processMorphoRewardsAndPools(
     const oldTotalSupply = call3Data[cursor++]
 
     const timeDelta = timestamp ? blockTimestamp - timestamp : (currentBlockNumber - pastBlockNumber) * 2
-    const currExchangeRate = (ctx.morphoPoolInfo[chain][pool].tvl * ONE * ONE) / ctx.morphoPoolInfo[chain][pool].totalSupply
+    const currExchangeRate =
+      (ctx.morphoPoolInfo[chain][pool].tvl * ONE * ONE) / ctx.morphoPoolInfo[chain][pool].totalSupply
     const oldExchangeRate = (oldTotalAssets * ONE * ONE) / oldTotalSupply
 
-    poolInfo.interestRate = currExchangeRate - oldExchangeRate / BigInt(timeDelta)
+    poolInfo.interestRate = (currExchangeRate - oldExchangeRate) / BigInt(timeDelta)
     poolInfo.apr =
-      Number(((currExchangeRate - oldExchangeRate) * 365n * 24n * 3600n) / BigInt(timeDelta) / ONE) / 1e4
+      Number(
+        ((currExchangeRate - oldExchangeRate) * 365n * 24n * 3600n * 10000n) / (BigInt(timeDelta) * oldExchangeRate),
+      ) / 100
     const totalDeposited = Number(poolInfo.aggregatedDeposit.bn)
 
     const earnings = (totalDeposited * poolInfo.apr) / 100 / 365
 
     populateCumulativeByAsset(
       ctx.cumulativeValuesByAsset,
+      poolInfo.asset,
+      totalDeposited,
+      totalDeposited,
+      earnings,
+      earnings,
+      earnings,
+    )
+    populateCumulativeByAsset(
+      ctx.cumulativeValuesByChains[chain],
       poolInfo.asset,
       totalDeposited,
       totalDeposited,
@@ -192,6 +206,7 @@ export async function processMorphoRewardsAndPools(
       chain,
       underlying: '',
       exchangeRate: 0n,
+      cashBN: 0n,
     })
   })
 
