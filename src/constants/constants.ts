@@ -60,6 +60,12 @@ export const assetConf: { [asset in ASSETS]: { tokenId: string } } = {
   [ASSETS.WLD]: { tokenId: 'worldcoin-wld' },
   [ASSETS.AVAX]: { tokenId: 'avalanche-2' },
 }
+export const POOL_FILTER_APR_THRESHOLD = 8
+export const POOL_FILTER_CAPACITY_THRESHOLD = -1
+export const POOL_FILTER_MIN_TVL = 1_000
+export const SONIC_PAST_BLOCK_OFFSET = 1_000
+export const DEFAULT_PAST_BLOCK_OFFSET = 100
+
 export const assetByTokenId = Object.assign(
   {},
   ...Object.entries(assetConf).map(([asset, { tokenId: id }]) => ({ [id]: asset })),
@@ -75,7 +81,7 @@ export const CHAIN_CONF: {
     chainId: number
     assets: { [addr: string]: ASSETS }
     aaveLendingPool: string
-    merklCampaingsUrl?: string
+    merklCampaignsUrl?: string
     compoundBorrowings: string[]
     morpho?: {
       MORPHO: string

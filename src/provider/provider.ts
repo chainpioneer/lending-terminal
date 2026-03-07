@@ -42,9 +42,10 @@ function switchProvider(chain: Chains) {
   console.log(`${chain} switching provider ${oldProviderIndex} -> ${lastProviderIndex[chain]}`)
 }
 
-export async function callWithTimeout(
+async function multicallWithTimeout(
   chain: Chains,
   requests: Call[],
+  method: 'all' | 'tryAll',
   blockNumber?: number,
   timeout = 15_000,
   from = `0x${'0'.repeat(40)}`,
@@ -54,7 +55,7 @@ export async function callWithTimeout(
   while (!result) {
     try {
       result = await Promise.race([
-        ETH_CALL_PROVIDERS[chain][lastProviderIndex[chain]].all(requests, {
+        ETH_CALL_PROVIDERS[chain][lastProviderIndex[chain]][method](requests, {
           blockTag: blockNumber,
           from,
         }),
@@ -71,47 +72,31 @@ export async function callWithTimeout(
     }
     if (!result) {
       switchProvider(chain)
-      return callWithTimeout(chain, requests, blockNumber, timeout)
+      return multicallWithTimeout(chain, requests, method, blockNumber, timeout)
     }
     await sleep(1_000 * errCount)
   }
   return result as any[]
 }
 
-export async function tryWithTimeout(
+export function callWithTimeout(
   chain: Chains,
   requests: Call[],
   blockNumber?: number,
-  timeout = 15_000,
-  from = `0x${'0'.repeat(40)}`,
+  timeout?: number,
+  from?: string,
 ): Promise<any[]> {
-  let errCount = 0
-  let result
-  while (!result) {
-    try {
-      result = await Promise.race([
-        ETH_CALL_PROVIDERS[chain][lastProviderIndex[chain]].tryAll(requests, {
-          blockTag: blockNumber,
-          from,
-        }),
-        sleep(timeout),
-      ])
-    } catch (e) {
-      console.log(String(e))
-      errCount++
-      console.log('eth_call failed', errCount)
-      if (errCount > maxErrCount[chain]) {
-        console.log(requests)
-        throw new Error(`eth_call failed ${maxErrCount} times`)
-      }
-    }
-    if (!result) {
-      switchProvider(chain)
-      return tryWithTimeout(chain, requests, blockNumber, timeout)
-    }
-    await sleep(1_000 * errCount)
-  }
-  return result as any[]
+  return multicallWithTimeout(chain, requests, 'all', blockNumber, timeout, from)
+}
+
+export function tryWithTimeout(
+  chain: Chains,
+  requests: Call[],
+  blockNumber?: number,
+  timeout?: number,
+  from?: string,
+): Promise<any[]> {
+  return multicallWithTimeout(chain, requests, 'tryAll', blockNumber, timeout, from)
 }
 
 export async function web3EthCall(chain: Chains, method: string, params: any[], timeout?: number) {

@@ -1,11 +1,8 @@
 import { ASSETS } from '../constants/constants'
 import { getAssetPrice } from '../logic/assetPrices'
+import { Deposit } from '../types'
 
-export type Deposit = {
-  amount: number
-  bn: bigint
-  usd: number
-}
+export type { Deposit }
 
 export function addDeposit(deposit: Deposit, addBN: bigint, div: number, asset: ASSETS) {
   deposit.bn += addBN
@@ -13,7 +10,7 @@ export function addDeposit(deposit: Deposit, addBN: bigint, div: number, asset: 
   deposit.usd = Number(((Number(deposit.bn) / div) * getAssetPrice(asset)).toFixed(2))
 }
 
-export function populate(map: any, keys: string[], addBN: bigint, div: number, asset: ASSETS) {
+export function accumulateDeposit(map: any, keys: string[], addBN: bigint, div: number, asset: ASSETS) {
   if (keys.length === 0) {
     addDeposit(map as Deposit, addBN, div, asset)
   }
@@ -31,9 +28,9 @@ export function populate(map: any, keys: string[], addBN: bigint, div: number, a
   }
 }
 
-export function populateSimple(map: any, keys: string[], addN: number) {
+export function accumulateUsd(map: any, keys: string[], addN: number) {
   if (keys.length === 0) {
-    throw new Error('populateSimple can be used only for Objects')
+    throw new Error('accumulateUsd can be used only for Objects')
   }
   for (let i = 0; i < keys.length - 1; i++) {
     const currKey = keys[i]

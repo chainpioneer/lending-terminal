@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { Call, Contract } from 'ethcall'
 
 import interestRateModelAbi from '../../abi/AAVEInterestRateModel.json' assert { type: 'json' }
@@ -10,178 +9,39 @@ import compoundBorrowingAbi from '../../abi/CompoundBorrowing.json' assert { typ
 import morphoPoolAbi from '../../abi/MorphoPool.json' assert { type: 'json' }
 import stakingPoolAbi from '../../abi/stakingPool.json' assert { type: 'json' }
 import vaultAbi from '../../abi/vault.json' assert { type: 'json' }
-import { ASSETS, CHAIN_CONF, Chains, getDiv } from '../constants/constants'
+import {
+  ASSETS,
+  CHAIN_CONF,
+  Chains,
+  DEFAULT_PAST_BLOCK_OFFSET,
+  getDiv,
+  POOL_FILTER_APR_THRESHOLD,
+  POOL_FILTER_CAPACITY_THRESHOLD,
+  POOL_FILTER_MIN_TVL,
+  SONIC_PAST_BLOCK_OFFSET,
+} from '../constants/constants'
 import { callWithTimeout, getCurrentEthCallProvider, tryWithTimeout, web3EthCall } from '../provider/provider'
-import { addDeposit, Deposit, populate, populateSimple, toDeposit } from '../utils/depositUtils'
+import { accumulateDeposit, accumulateUsd, toDeposit } from '../utils/depositUtils'
 import ONE from '../utils/ONE'
 import { getAssetPrice, waitForPrices } from './assetPrices'
-
-type AssetStats = {
-  oldUserSupplied: number
-  newUserSupplied: number
-  newUserSuppliedUsd: number
-  oldDailyEarnings: number
-  oldDailyEarningsUsd: number
-  newDailyEarnings: number
-  maxDailyEarnings: number
-  maxDailyEarningsUsd: number
-  currentAPR: number
-  maxAPR: number
-}
-
-type ChainStats = {
-  newUserSuppliedUsd: number
-  oldDailyEarningsUsd: number
-  usd: number
-  maxDailyEarningsUsd: number
-  currentAPR: number
-  maxAPR: number
-}
-
-export type Pool = {
-  borrowable: string
-  platform: string
-  supplied: number
-  suppliedBN: bigint
-  suppliedUsd: number
-  kink: number
-  utilization: number
-  aprOld: number
-  tvlUsd: number
-  tvl: number
-  aprNew: number
-  earningsOld: number
-  earningsNew: number
-  earningsOldUsd: number
-  earningsNewUsd: number
-  stakingDailyEarningsUsd: number
-  stakingAPR: number
-  stakingDailyEarnings: number
-  stakingRewardAsset: string
-  availableToDeposit: number
-  availableToDepositUsd: number
-  vaultAPR: number | string
-  chain: Chains
-  asset: ASSETS
-  oppositeSymbol: string
-  vault: string
-  stable: boolean
-}
-
-const aprThreshold = 8
-const capacityThreshold = -1
-const minTVL = 1_000
+import { formatStats, sortByUserDeposit, sortByUserSimple } from './helpers'
+import { createLoadContext } from './loadContext'
+import { processAaveBalances, buildAavePools } from './processAave'
+import { parseCompoundCall2Data, processCompoundCollateral, buildCompoundPositions } from './processCompound'
+import { processBorrowables, processCollateralPositions } from './processImpermax'
+import { parseMorphoCall1Data, processMorphoRewardsAndPools } from './processMorpho'
 
 export default async function load(users: string[]) {
   await waitForPrices()
-  const cumulativeValuesByChains: { [chain: string]: { [asset: string]: AssetStats } } = {}
-  const chainAggregatedStats: { [chain: string]: ChainStats } = {}
-  const cumulativeValuesByAsset: { [asset: string]: AssetStats } = {}
-  const idleBalancesByAsset: { [asset: string]: Deposit } = {}
-  const aaveABalancesByAsset: { [asset: string]: Deposit } = {}
-  const compoundCollateralByAsset: { [asset: string]: Deposit } = {}
-  const compoundDebtByAsset: { [asset: string]: Deposit } = {}
-  const compoundBorrowingReward: Deposit = { amount: 0, bn: 0n, usd: 0 }
-  const compoundBorrowingRewardByBorrowedAsset: { [asset: string]: Deposit } = {}
-  const morphoRewardsByAsset: { [asset: string]: Deposit } = {}
-  const aaveAEarningsByAsset: { [asset: string]: Deposit } = {}
-  const compoundSpendingsByAsset: { [asset: string]: Deposit } = {}
-  const aaveVDSpendingsByAsset: { [asset: string]: Deposit } = {}
-  const aaveVDBalancesByAsset: { [asset: string]: Deposit } = {}
-  const idleBalancesByChain: { [chain: string]: { [asset: string]: Deposit } } = {}
-  const aaveABalancesByChainByAsset: { [chain: string]: { [asset: string]: Deposit } } = {}
-  const aaveABalancesByChainByAssetAddress: { [chain: string]: { [address: string]: Deposit } } = {}
-  const aaveVDBalancesByChainByAsset: { [asset: string]: { [asset: string]: Deposit } } = {}
-  // const aaveAEarningsByChainByAsset: { [asset: string]: { [asset: string]: Deposit } } = {}
-  // const aaveVDSpendingsByChainByAsset: { [asset: string]: { [asset: string]: Deposit } } = {}
-
-  const idleBalancesByUser: { [user: string]: number } = {}
-  const idleBalancesByAssetByUser: { [asset: string]: { [user: string]: Deposit } } = {}
-  const idleBalancesByChainByUser: { [chain: string]: { [user: string]: number } } = {}
-  const idleBalancesByChainByAssetByUser: { [chain: string]: { [asset: string]: { [user: string]: Deposit } } } = {}
-
-  const suppliedByUser: { [user: string]: number } = {}
-  let suppliedAsCollateral: number = 0
-  let earningsAsCollateral: number = 0
-  const suppliedByAssetByUser: { [asset: string]: { [user: string]: Deposit } } = {}
-  const suppliedByChainByUser: { [chain: string]: { [user: string]: number } } = {}
-  const suppliedByChainByAssetByUser: { [chain: string]: { [asset: string]: { [user: string]: Deposit } } } = {}
-  const suppliedByChainByBorrowableByUser: { [chain: string]: { [borrowable: string]: { [user: string]: Deposit } } } =
-    {}
-
-  const aTokenInfo: {
-    [asset: string]: { [aToken: string]: { supply: Deposit; borrow: Deposit; kinkUtilizationRatio: bigint } }
-  } = {}
-  const compoundBorrowingInfo: {
-    [chain: string]: {
-      [borrowing: string]: {
-        asset: ASSETS
-        assetPrice: number
-        baseAsset: string
-        borrowed: { [user: string]: Deposit }
-        rewards: { [user: string]: Deposit }
-        spendings: { [user: string]: Deposit }
-        supplied: { [asset: string]: Deposit }
-        numAssets: number
-        borrowRate: bigint
-        rewardRate: bigint
-        totalBorrow: bigint
-        collaterals: { [collateral: string]: { [user: string]: Deposit } }
-        collateralToAsset: { [collateral: string]: ASSETS }
-        liquidationRatio: { [collateral: string]: bigint }
-        positions: {
-          [user: string]: {
-            healthFactor: number
-            liquidationPrice: number
-            address: string
-            collateralTotalUsd: number
-            apr: number
-          }
-        }
-      }
-    }
-  } = {}
-  const morphoPoolInfo: {
-    [chain: string]: {
-      [pool: string]: {
-        asset: ASSETS
-        supplied: { [user: string]: Deposit }
-        interestRate: bigint
-        rewardRate: bigint
-        totalSupply: bigint
-        tvl: bigint
-        fee: bigint
-        apr: number
-        aggregatedDeposit: Deposit
-      }
-    }
-  } = {}
-
-  const aavePositions: {
-    [userChain: string]: {
-      healthFactor: string | number
-      collateralTotalUsd: number
-      collateralizationUsd: number
-      borrowedTotalUsd: number
-      apr: number
-      earnings: number
-      spendings: number
-      collaterals: { [asset: string]: Deposit }
-      borrows: { [asset: string]: Deposit }
-    }
-  } = {}
-
-  const aaveReserveData: any = {}
-
-  const pools: Pool[] = []
+  const ctx = createLoadContext()
 
   const chains = Object.keys(CHAIN_CONF) as Chains[]
 
   async function callChain(chain: Chains) {
-    aTokenInfo[chain] = {}
-    aaveReserveData[chain] = {}
-    cumulativeValuesByChains[chain] = {}
-    chainAggregatedStats[chain] = {
+    ctx.aTokenInfo[chain] = {}
+    ctx.aaveReserveData[chain] = {}
+    ctx.cumulativeValuesByChains[chain] = {}
+    ctx.chainAggregatedStats[chain] = {
       newUserSuppliedUsd: 0,
       currentAPR: 0,
       oldDailyEarningsUsd: 0,
@@ -189,20 +49,21 @@ export default async function load(users: string[]) {
       maxAPR: 0,
       maxDailyEarningsUsd: 0,
     }
-    idleBalancesByChain[chain] = {}
-    compoundBorrowingInfo[chain] = {}
-    morphoPoolInfo[chain] = {}
-    idleBalancesByChainByAssetByUser[chain] = {}
-    aaveABalancesByChainByAsset[chain] = {}
-    aaveABalancesByChainByAssetAddress[chain] = {}
-    aaveVDBalancesByChainByAsset[chain] = {}
+    ctx.idleBalancesByChain[chain] = {}
+    ctx.compoundBorrowingInfo[chain] = {}
+    ctx.morphoPoolInfo[chain] = {}
+    ctx.idleBalancesByChainByAssetByUser[chain] = {}
+    ctx.aaveABalancesByChainByAsset[chain] = {}
+    ctx.aaveABalancesByChainByAssetAddress[chain] = {}
+    ctx.aaveVDBalancesByChainByAsset[chain] = {}
     const blockStruct = await web3EthCall(chain, 'getBlock', ['latest', false])
     const currentBlockNumber = Number(blockStruct.number)
     console.log(chain, 'block number', currentBlockNumber)
-    const pastBlockNumber = currentBlockNumber - (chain === Chains.SONIC ? 1_000 : 100)
+    const pastBlockNumber = currentBlockNumber - (chain === Chains.SONIC ? SONIC_PAST_BLOCK_OFFSET : DEFAULT_PAST_BLOCK_OFFSET)
     const blockTimestamp = Number(blockStruct.timestamp)
     const conf = CHAIN_CONF[chain as Chains]
 
+    // === Build call1: borrowables, staking pools, compound, AAVE reserves, morpho ===
     let callsPerBor = 0
     const calls1: Call[] = []
     conf.borrowables.forEach((b, i) => {
@@ -278,6 +139,7 @@ export default async function load(users: string[]) {
     const call1Data = await callWithTimeout(chain, calls1, currentBlockNumber)
     console.log('calling call1 success', chain)
 
+    // === Build call2: collaterals, compound borrow rates, AAVE reserve data ===
     const collateralMap: { [c: string]: string[] } = {}
     const underlyings: { [u: string]: true } = {}
     const borrowableToUnderlying: { [b: string]: string } = {}
@@ -313,7 +175,7 @@ export default async function load(users: string[]) {
       const totalBorrow = call1Data[borrowableCallCount + i * 5 + 3]
       const rewardRate = call1Data[borrowableCallCount + i * 5 + 4]
       if (rewardRate > 0) console.log('compound reward rate', rewardRate, totalBorrow)
-      compoundBorrowingInfo[chain][address] = {
+      ctx.compoundBorrowingInfo[chain][address] = {
         baseAsset,
         rewards: {},
         spendings: {},
@@ -339,7 +201,7 @@ export default async function load(users: string[]) {
       }
     })
 
-    let assetAddressesOnAAVE = []
+    let assetAddressesOnAAVE: string[] = []
 
     if (conf.aaveLendingPool) {
       assetAddressesOnAAVE = call1Data.pop().filter((x: string) => conf.assets[x])
@@ -356,6 +218,8 @@ export default async function load(users: string[]) {
 
     const call2Data = await callWithTimeout(chain, calls2, currentBlockNumber)
     console.log('calling call2: success', chain)
+
+    // === Build call3: second borrowable underlyings, vault historical state ===
     const calls3: Call[] = []
     const vaultOrLPByBor: { [b: string]: string } = {}
     const stableByBor: { [b: string]: boolean } = {}
@@ -396,67 +260,16 @@ export default async function load(users: string[]) {
 
     const lendingProtocolCalls: Call[] = []
 
+    // === Parse compound call2 data ===
     let skipCount = Object.keys(collateralMap).length * callsPerCol
-    conf.compoundBorrowings.forEach((address, i) => {
-      const { numAssets, baseAsset } = compoundBorrowingInfo[chain][address]
-      const asset = conf.assets[baseAsset]
-      const div = getDiv(asset)
-      compoundBorrowingInfo[chain][address].borrowRate = call2Data[skipCount++]
+    skipCount = parseCompoundCall2Data(ctx, chain, conf, users, call2Data, skipCount, compoundBorrowings, lendingProtocolCalls)
 
-      let totalDebt = 0n
-      users.forEach((u) => {
-        const bn = call2Data[skipCount++]
-        const debt = toDeposit(bn, div, asset)
-        totalDebt += bn
-        if (bn > 0) {
-          populateSimple(suppliedByUser, [u], -debt.usd)
-          console.log('compound debt', -debt.usd)
-        }
-        populate(compoundDebtByAsset, [asset], bn, div, asset)
-
-        const rewardEarn =
-          (compoundBorrowingInfo[chain][address].rewardRate * 24n * 365n * 3600n * ONE * bn) /
-          compoundBorrowingInfo[chain][address].totalBorrow /
-          10n ** 15n
-        const earnings = toDeposit(rewardEarn / 365n, 1e18, ASSETS.COMP)
-        populate(compoundBorrowingReward, [], rewardEarn, 1e18, ASSETS.COMP)
-        populate(compoundBorrowingRewardByBorrowedAsset, [asset], earnings.bn, 1e18, ASSETS.COMP)
-
-        compoundBorrowingInfo[chain][address].borrowed[u] = { ...debt }
-        compoundBorrowingInfo[chain][address].rewards[u] = { ...earnings }
-        compoundBorrowingInfo[chain][address].spendings[u] = toDeposit(
-          (bn * compoundBorrowingInfo[chain][address].borrowRate * 24n * 3600n) / ONE,
-          div,
-          asset,
-        )
-      })
-      const _bn = (totalDebt * compoundBorrowingInfo[chain][address].borrowRate * 365n * 24n * 3600n) / ONE
-      if (_bn > 0) {
-        console.log('compound spend', totalDebt, compoundBorrowingInfo[chain][address].borrowRate, _bn)
-      }
-      populate(compoundSpendingsByAsset, [asset], _bn, div, asset)
-
-      for (let j = 0; j < numAssets; j++) {
-        const assetInfo = call2Data[skipCount++]
-        const collateral = assetInfo[1]
-        const liquidationRatio = assetInfo[5]
-        if (conf.assets[collateral]) {
-          compoundBorrowingInfo[chain][address].collaterals[collateral] = {}
-          compoundBorrowingInfo[chain][address].collateralToAsset[collateral] = conf.assets[collateral]
-          compoundBorrowingInfo[chain][address].liquidationRatio[collateral] = liquidationRatio
-          users.forEach((u) => {
-            lendingProtocolCalls.push(compoundBorrowings[i].userCollateral(u, collateral))
-          })
-        }
-      }
-    })
-
+    // === Parse AAVE call2 data ===
     const userEMode: { [user: string]: number } = {}
     const eModeLiqThreshold: { [eMode: number]: number } = {}
     if (conf.aaveLendingPool) {
       assetAddressesOnAAVE.forEach((reserve: string) => {
-        // console.log('reserve data', reserve, call2Data[skipCount + i])
-        aaveReserveData[chain][reserve] = call2Data[skipCount++]
+        ctx.aaveReserveData[chain][reserve] = call2Data[skipCount++]
       })
       const eModeCategoryData = call2Data[skipCount++]
       eModeLiqThreshold[1] = Number(eModeCategoryData[1])
@@ -466,55 +279,21 @@ export default async function load(users: string[]) {
     }
 
     assetAddressesOnAAVE.forEach((reserve: string) => {
-      const aToken = new Contract(aaveReserveData[chain][reserve][8], aTokenAbi)
+      const aToken = new Contract(ctx.aaveReserveData[chain][reserve][8], aTokenAbi)
       lendingProtocolCalls.push(aToken.totalSupply())
-      const vdToken = new Contract(aaveReserveData[chain][reserve][10], aTokenAbi)
+      const vdToken = new Contract(ctx.aaveReserveData[chain][reserve][10], aTokenAbi)
       lendingProtocolCalls.push(vdToken.totalSupply())
-      const interestRateModel = new Contract(aaveReserveData[chain][reserve][11], interestRateModelAbi)
+      const interestRateModel = new Contract(ctx.aaveReserveData[chain][reserve][11], interestRateModelAbi)
       lendingProtocolCalls.push(interestRateModel.getOptimalUsageRatio(reserve))
       users.forEach((u) => {
         lendingProtocolCalls.push(aToken.balanceOf(u), vdToken.balanceOf(u))
       })
     })
 
+    // === Parse morpho call1 data ===
     let callIndex = borrowableCallCount + conf.compoundBorrowings.length * 5 + (conf.aaveLendingPool ? 1 : 0)
     if (conf.morpho) {
-      conf.morpho.pools.forEach((pool) => {
-        console.log('expected asset call', calls1[callIndex])
-        const assetAddress = call1Data[callIndex++]
-        const totalAssetCall = calls1[callIndex]
-        calls3.push(totalAssetCall)
-        const totalAssets = call1Data[callIndex++]
-        const totalSupplyCall = calls1[callIndex]
-        calls3.push(totalSupplyCall)
-        const totalSupply = call1Data[callIndex++]
-        const fee = call1Data[callIndex++]
-        const asset = conf.assets[assetAddress]
-        morphoPoolInfo[chain][pool] = {
-          aggregatedDeposit: { bn: 0n, usd: 0, amount: 0 },
-          asset,
-          totalSupply,
-          apr: 0,
-          interestRate: 0n,
-          rewardRate: 0n,
-          fee,
-          tvl: totalAssets,
-          supplied: {},
-        }
-        users.forEach((u) => {
-          const balance = call1Data[callIndex++]
-          const div = getDiv(asset)
-          const assetBalance: bigint = (BigInt(balance * totalAssets) / totalSupply) as bigint
-          const deposit = toDeposit(assetBalance, div, asset)
-          morphoPoolInfo[chain][pool].supplied[u] = deposit
-
-          populateSimple(suppliedByUser, [u], deposit.usd)
-          populateSimple(suppliedByChainByUser, [chain, u], deposit.usd)
-          populate(suppliedByAssetByUser, [asset, u], deposit.bn, div, asset)
-          populate(suppliedByChainByAssetByUser, [chain, asset, u], deposit.bn, div, asset)
-          addDeposit(morphoPoolInfo[chain][pool].aggregatedDeposit, deposit.bn, div, asset)
-        })
-      })
+      callIndex = parseMorphoCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, callIndex)
     }
 
     console.log('calling call3', chain)
@@ -527,6 +306,8 @@ export default async function load(users: string[]) {
     )
 
     console.log('calling call3 success', chain)
+
+    // === Parse call3: vault historical state ===
     const pastVaultStateByBorrowable: {
       [b: string]: { timestamp: number; exchangeRate: bigint; totalBalance: bigint }
     } = {}
@@ -535,7 +316,7 @@ export default async function load(users: string[]) {
 
     let cursor = 0
     let sbCursor = 0
-    let timestamp: number
+    let timestamp = 0
     const vaultByCollateral: { [vault: string]: string } = {}
     const collateralByBorrowable: { [vault: string]: string } = {}
     Object.entries(collateralMap).forEach(([col, bors]) => {
@@ -547,7 +328,6 @@ export default async function load(users: string[]) {
         if (!timestamp) {
           timestamp = Number(call3Data[cursor++])
         }
-        // console.log({underlyingAsset})
         calls4.push(new Contract(underlyingAsset, borrowableAbi).symbol())
       })
       vaultByCollateral[col] = vaultOrLPByBor[bors[0]]
@@ -563,7 +343,6 @@ export default async function load(users: string[]) {
       const totalBalance = call3Data[cursor++] ?? ONE
       const lp = call3Data[cursor++] ?? vaultByCollateral[col]
       const lpc = new Contract(lp, vaultAbi)
-      // console.log({lp})
       calls4.push(lpc.getReserves())
       calls4.push(lpc.totalSupply())
       bors.forEach((b) => {
@@ -576,121 +355,11 @@ export default async function load(users: string[]) {
       })
     })
 
+    // === Process morpho rewards and build morpho pools ===
     if (conf.morpho) {
-      let merkleChainData: any
-
-      try {
-        const { data } = await axios.get(conf.morpho.merklCampaignsUrl)
-        merkleChainData = data
-      } catch (e) {
-        console.log(e)
-        console.log('failed to fetch merkle incentives for chain', chain)
-      }
-
-      conf.morpho.pools.forEach((pool) => {
-        let stakingDailyEarnings = 0
-        let stakingDailyEarningsBN = 0n
-        let stakingDailyEarningsUsd = 0
-        let stakingAPR = 0
-        let stakingRewardAsset = ''
-
-        const poolInfo = morphoPoolInfo[chain][pool]
-
-        if (merkleChainData) {
-          const isPoolIntegrated: { [pool: string]: true } = {}
-          conf.morpho!.pools.forEach((poolAddr) => {
-            isPoolIntegrated[poolAddr] = true
-          })
-          merkleChainData.forEach((oppData: any) => {
-            if (!isPoolIntegrated[oppData.identifier]) return
-            oppData.rewardsRecord.breakdowns.forEach((rewardBreakdown: any) => {
-              if (!conf.assets[rewardBreakdown.token.address]) {
-                console.log('skipping unknown reward token on Merkle', rewardBreakdown.token.address)
-                return
-              }
-              if (!stakingRewardAsset) {
-                stakingRewardAsset = conf.assets[rewardBreakdown.token.address]
-              } else if (stakingRewardAsset !== conf.assets[rewardBreakdown.token.address]) {
-                console.log('skipping additional reward token on Merkle', rewardBreakdown.token.address)
-                return
-              }
-              const rewardAmountPerDay = BigInt(rewardBreakdown.amount)
-              const assetPrice = getAssetPrice(stakingRewardAsset as ASSETS)
-              const div = getDiv(stakingRewardAsset as ASSETS)
-              const dailyEarnings = Number((poolInfo.aggregatedDeposit.bn * rewardAmountPerDay) / poolInfo.tvl) / div
-              stakingDailyEarningsBN += (poolInfo.aggregatedDeposit.bn * rewardAmountPerDay) / poolInfo.tvl
-              stakingDailyEarnings += dailyEarnings
-              stakingDailyEarningsUsd += dailyEarnings * assetPrice
-            })
-          })
-          populate(morphoRewardsByAsset, [poolInfo.asset], stakingDailyEarningsBN, 1e18, stakingRewardAsset as ASSETS)
-          stakingAPR = (stakingDailyEarningsUsd * 365 * 100) / poolInfo.aggregatedDeposit.usd
-        }
-
-        const oldTotalAssets = call3Data[cursor++]
-        const oldTotalSupply = call3Data[cursor++]
-
-        const timeDelta = timestamp ? blockTimestamp - timestamp : (currentBlockNumber - pastBlockNumber) * 2
-        const currExchangeRate = (morphoPoolInfo[chain][pool].tvl * ONE * ONE) / morphoPoolInfo[chain][pool].totalSupply
-        const oldExchangeRate = (oldTotalAssets * ONE * ONE) / oldTotalSupply
-
-        poolInfo.interestRate = currExchangeRate - oldExchangeRate / BigInt(timeDelta)
-        poolInfo.apr =
-          Number(((currExchangeRate - oldExchangeRate) * 365n * 24n * 3600n) / BigInt(timeDelta) / ONE) / 1e4
-        const totalDeposited = Number(poolInfo.aggregatedDeposit.bn)
-
-        const earnings = (totalDeposited * poolInfo.apr) / 100 / 365
-
-        populateCumulativeByAsset(
-          cumulativeValuesByAsset,
-          poolInfo.asset,
-          totalDeposited,
-          totalDeposited,
-          earnings,
-          earnings,
-          earnings,
-        )
-        console.log(cumulativeValuesByAsset[poolInfo.asset])
-        console.log('morpho apr', morphoPoolInfo[chain][pool].apr)
-
-        const asset = poolInfo.asset
-        const div = getDiv(asset)
-        // console.log(aaveAsset, aTokenInfo)
-        const utilization = ONE
-        const availableToDeposit = 0n
-        const tvl = toDeposit(poolInfo.tvl, getDiv(poolInfo.asset), poolInfo.asset)
-        pools.push({
-          platform: 'MORPHO',
-          borrowable: pool,
-          asset,
-          suppliedBN: poolInfo.aggregatedDeposit.bn,
-          supplied: poolInfo.aggregatedDeposit.amount,
-          suppliedUsd: poolInfo.aggregatedDeposit.usd,
-          tvl: tvl.amount,
-          tvlUsd: tvl.usd,
-          stakingDailyEarningsUsd: Number(stakingDailyEarningsUsd.toFixed(2)),
-          stakingAPR: Number(stakingAPR.toFixed(2)),
-          stakingDailyEarnings: Number(stakingDailyEarnings.toFixed(2)),
-          stakingRewardAsset,
-          kink: 100,
-          utilization: Number((Number(utilization) / 1e16).toFixed(2)),
-          aprOld: Number(poolInfo.apr.toFixed(2)),
-          aprNew: Number(poolInfo.apr.toFixed(2)),
-          earningsOld: Number((earnings / div).toFixed(4)),
-          earningsNew: Number((earnings / div).toFixed(4)),
-          earningsOldUsd: Number(((earnings * getAssetPrice(asset)) / div).toFixed(2)),
-          earningsNewUsd: Number(((earnings * getAssetPrice(asset)) / div).toFixed(2)),
-          availableToDeposit: Number((Number(availableToDeposit < 0 ? 0n : availableToDeposit) / div).toFixed(4)),
-          availableToDepositUsd: Number(
-            ((Number(availableToDeposit < 0 ? 0n : availableToDeposit) * getAssetPrice(asset)) / div).toFixed(2),
-          ),
-          oppositeSymbol: '',
-          vaultAPR: '',
-          vault: '',
-          stable: false,
-          chain,
-        })
-      })
+      cursor = await processMorphoRewardsAndPools(
+        ctx, chain, conf, call3Data, cursor, blockTimestamp, timestamp, currentBlockNumber, pastBlockNumber,
+      )
     }
 
     users.forEach((u) => {
@@ -713,6 +382,7 @@ export default async function load(users: string[]) {
       '0xcA11bde05977b3631167028862bE2a173976CA11',
     )
 
+    // === Parse call4: symbols, vault reinvest data, LP reserves ===
     const symbolByBorrowable: { [b: string]: string } = {}
     const vaultExchangeRateAfterReinvestByVault: { [b: string]: bigint } = {}
     const vaultBalanceAfterReinvestByVault: { [b: string]: bigint } = {}
@@ -740,6 +410,8 @@ export default async function load(users: string[]) {
 
     console.log('calling call4 success')
     console.log(vaultBalanceAfterReinvestByVault)
+
+    // === Process idle balances ===
     const idleBalances = dataFromCall4.slice(cursor)
 
     for (let i = 0; i <= Object.keys(underlyings).length; i++) {
@@ -770,522 +442,54 @@ export default async function load(users: string[]) {
       let j = 0
       for (const user of users) {
         const bn = idleBalances[i * users.length + j]
-        populate(idleBalancesByAsset, [asset], bn, div, asset)
-        populate(idleBalancesByChain, [chain, asset], bn, div, asset)
+        accumulateDeposit(ctx.idleBalancesByAsset, [asset], bn, div, asset)
+        accumulateDeposit(ctx.idleBalancesByChain, [chain, asset], bn, div, asset)
         if (bn > 0n) {
-          populate(idleBalancesByChainByAssetByUser, [chain, asset, user], bn, div, asset)
+          accumulateDeposit(ctx.idleBalancesByChainByAssetByUser, [chain, asset, user], bn, div, asset)
           const { usd } = toDeposit(bn, div, asset)
-          populate(idleBalancesByAssetByUser, [asset, user], bn, div, asset)
-          populateSimple(idleBalancesByUser, [user], usd)
-          populateSimple(idleBalancesByChainByUser, [chain, user], usd)
+          accumulateDeposit(ctx.idleBalancesByAssetByUser, [asset, user], bn, div, asset)
+          accumulateUsd(ctx.idleBalancesByUser, [user], usd)
+          accumulateUsd(ctx.idleBalancesByChainByUser, [chain, user], usd)
         }
         j++
       }
     }
 
+    // === Process compound collateral and positions ===
     skipCount = calls4.length
+    skipCount = processCompoundCollateral(ctx, chain, conf, users, dataFromCall4, skipCount)
+    buildCompoundPositions(ctx, chain)
 
-    conf.compoundBorrowings.forEach((address: string) => {
-      Object.keys(compoundBorrowingInfo[chain][address].collaterals).forEach((collateral) => {
-        const asset = conf.assets[collateral]
-        const div = getDiv(asset)
-        users.forEach((u) => {
-          const bn = dataFromCall4[skipCount++][0]
-          // console.log('compound collateral balance', address, u, bn)
-          populate(compoundCollateralByAsset, [asset], bn, div, asset)
-          compoundBorrowingInfo[chain][address].collaterals[collateral][u] = toDeposit(bn, div, asset)
-          if (bn > 0) {
-            populateCumulativeByAsset(cumulativeValuesByAsset, asset, Number(bn), Number(bn), 0, 0, 0)
-            console.log('compound deposit', compoundBorrowingInfo[chain][address].collaterals[collateral][u].usd)
-            populateSimple(suppliedByUser, [u], compoundBorrowingInfo[chain][address].collaterals[collateral][u].usd)
-            populate(suppliedByAssetByUser, [asset, u], bn, div, asset)
-          }
-        })
-      })
-    })
+    // === Process AAVE balances and positions ===
+    processAaveBalances(ctx, chain, conf, users, assetAddressesOnAAVE, dataFromCall4, skipCount, userEMode, eModeLiqThreshold)
 
-    Object.keys(compoundBorrowingInfo[chain]).forEach((address) => {
-      Object.keys(compoundBorrowingInfo[chain][address].borrowed).forEach((u) => {
-        if (compoundBorrowingInfo[chain][address].borrowed[u].bn === 0n) return
-        console.log('position', u)
-        const borrowedUsd = compoundBorrowingInfo[chain][address].borrowed[u].usd
-        let collateralizationUsd = 0
-        let collateralTotalUsd = 0
-        Object.keys(compoundBorrowingInfo[chain][address].collaterals).forEach((collateral) => {
-          if (compoundBorrowingInfo[chain][address].collaterals[collateral][u]) {
-            const collateralUsd = compoundBorrowingInfo[chain][address].collaterals[collateral][u].usd
-            collateralTotalUsd += collateralUsd
-            collateralizationUsd +=
-              (collateralUsd * Number(compoundBorrowingInfo[chain][address].liquidationRatio[collateral])) / 1e18
-          }
-        })
-        const healthFactor = Number((collateralizationUsd / borrowedUsd).toFixed(2))
-        const liquidationPrice = Number(
-          (collateralizationUsd / compoundBorrowingInfo[chain][address].borrowed[u].amount).toFixed(2),
-        )
-        const apr = Number(
-          (
-            ((compoundBorrowingInfo[chain][address].rewards[u].usd -
-              compoundBorrowingInfo[chain][address].spendings[u].usd) *
-              365 *
-              100) /
-            collateralTotalUsd
-          ).toFixed(2),
-        )
-        compoundBorrowingInfo[chain][address].positions[u] = {
-          healthFactor,
-          liquidationPrice,
-          address,
-          collateralTotalUsd: Number(collateralTotalUsd.toFixed(2)),
-          apr,
-        }
-      })
-    })
+    // === Process Impermax/Tarot borrowables ===
+    const aprByVault = processBorrowables(
+      ctx, chain, conf, users, call1Data, callsPerBor, callsPerStakingPool, stakingPoolCursor,
+      blockTimestamp, pastVaultStateByBorrowable, vaultOrLPByBor, stableByBor,
+      collateralByBorrowable, collateralToBorrowables, symbolByBorrowable,
+      vaultExchangeRateAfterReinvestByVault, vaultBalanceAfterReinvestByVault,
+    )
 
-    assetAddressesOnAAVE.forEach((reserve: string, i: number) => {
-      const asset = conf.assets[reserve]
-      const div = getDiv(asset)
-      const price = getAssetPrice(asset)
-      // console.log(call3Data.slice(skipCount))
-      const aSupply = dataFromCall4[skipCount + i * (users.length * 2 + 3)]
-      const vdSupply = dataFromCall4[skipCount + i * (users.length * 2 + 3) + 1]
-      aTokenInfo[chain][reserve] = {
-        supply: toDeposit(aSupply, div, asset),
-        borrow: toDeposit(vdSupply, div, asset),
-        kinkUtilizationRatio: dataFromCall4[skipCount + i * (users.length * 2 + 3) + 2],
-      }
-      users.forEach((u, j) => {
-        const aBalance = dataFromCall4[skipCount + i * (users.length * 2 + 3) + j * 2 + 3] as bigint
-        const vdBalance = dataFromCall4[skipCount + i * (users.length * 2 + 3) + j * 2 + 4] as bigint
-        // console.log({u, reserve, aBalance, vdBalance})
-        const depositUsd = Number(((Number(aBalance) / div) * price).toFixed(2))
-        const borrowedUsd = Number(((Number(vdBalance) / div) * price).toFixed(2))
-        if (aBalance !== vdBalance) {
-          console.log('aave deposit', depositUsd - borrowedUsd)
-          populateSimple(suppliedByUser, [u], Number((depositUsd - borrowedUsd).toFixed(2)))
-        }
+    // === Process collateral positions (LP positions) ===
+    processCollateralPositions(
+      ctx, conf, users, collateralMap, balanceByCollateralByUser,
+      exchangeRateByCollateral, vaultByCollateral, vaultExchangeRateAfterReinvestByVault,
+      borrowableToUnderlying, collateralToBorrowables, symbolByBorrowable,
+      reservesByVault, lpSupplyByVault, aprByVault,
+    )
 
-        populate(aaveABalancesByAsset, [asset], aBalance, div, asset)
-
-        const earnings = (aBalance * aaveReserveData[chain][reserve][2]) / 10n ** 27n
-
-        populate(aaveAEarningsByAsset, [asset], earnings, div, asset)
-
-        const earningsUsd = toDeposit(earnings, div, asset).usd
-
-        const spendings = (vdBalance * aaveReserveData[chain][reserve][4]) / 10n ** 27n
-        const spendingsUsd = toDeposit(spendings, div, asset).usd
-        populate(aaveVDSpendingsByAsset, [asset], spendings, div, asset)
-        populate(aaveABalancesByChainByAssetAddress, [chain, reserve], aBalance, div, asset)
-        populate(aaveABalancesByChainByAsset, [chain, asset], aBalance, div, asset)
-
-        if (aBalance > 0) {
-          const aToken = aaveReserveData[chain][reserve][8]
-          populate(suppliedByChainByBorrowableByUser, [chain, aToken, u], aBalance, div, asset)
-
-          const usd = suppliedByChainByBorrowableByUser[chain][aToken][u].usd
-          if (aavePositions[u + chain]) {
-            aavePositions[u + chain].collateralTotalUsd = Number(
-              (aavePositions[u + chain].collateralTotalUsd + usd).toFixed(2),
-            )
-            aavePositions[u + chain].collateralizationUsd = Number(
-              (
-                aavePositions[u + chain].collateralizationUsd +
-                (usd *
-                  (userEMode[u] === 1
-                    ? eModeLiqThreshold[1]
-                    : getLiquidationThreshold(aaveReserveData[chain][reserve][0][0]))) /
-                  10_000
-              ).toFixed(2),
-            )
-            if (aavePositions[u + chain].borrowedTotalUsd !== 0) {
-              aavePositions[u + chain].healthFactor = Number(
-                (aavePositions[u + chain].collateralizationUsd / aavePositions[u + chain].borrowedTotalUsd).toFixed(2),
-              )
-            }
-            populate(aavePositions[u + chain].collaterals, [asset], aBalance, div, asset)
-            aavePositions[u + chain].earnings = Number(
-              (aavePositions[u + chain].earnings + earningsUsd / 365).toFixed(2),
-            )
-            aavePositions[u + chain].apr = Number(
-              (
-                ((aavePositions[u + chain].earnings - aavePositions[u + chain].spendings) * 365 * 100) /
-                aavePositions[u + chain].collateralTotalUsd
-              ).toFixed(2),
-            )
-          } else {
-            aavePositions[u + chain] = {
-              collateralTotalUsd: usd,
-              collateralizationUsd: Number(
-                (
-                  (usd *
-                    (userEMode[u] === 1
-                      ? eModeLiqThreshold[1]
-                      : getLiquidationThreshold(aaveReserveData[chain][reserve][0][0]))) /
-                  10_000
-                ).toFixed(2),
-              ),
-              borrowedTotalUsd: 0,
-              healthFactor: '∞',
-              collaterals: {
-                [asset]: toDeposit(aBalance, div, asset),
-              },
-              borrows: {},
-              earnings: Number((earningsUsd / 365).toFixed(2)),
-              spendings: 0,
-              apr: Number(((earningsUsd * 100) / usd).toFixed(2)),
-            }
-          }
-
-          populate(suppliedByAssetByUser, [asset, u], aBalance, div, asset)
-
-          const earnings = Number(
-            (
-              Number(
-                (aaveReserveData[chain][reserve][2] * aaveABalancesByChainByAssetAddress[chain][reserve].bn) / 365n,
-              ) / 1e27
-            ).toFixed(2),
-          )
-
-          populateCumulativeByAsset(
-            cumulativeValuesByAsset,
-            asset,
-            Number(aBalance),
-            Number(aBalance),
-            earnings,
-            earnings,
-            earnings,
-          )
-          // console.log('aave deposit of', asset, earnings, cumulativeValuesByAsset[asset].newDailyEarnings)
-        }
-
-        if (vdBalance > 0) {
-          const { usd } = toDeposit(vdBalance, div, asset)
-          if (aavePositions[u + chain]) {
-            aavePositions[u + chain].borrowedTotalUsd = Number(
-              (aavePositions[u + chain].borrowedTotalUsd + usd).toFixed(2),
-            )
-            aavePositions[u + chain].healthFactor = Number(
-              (aavePositions[u + chain].collateralizationUsd / aavePositions[u + chain].borrowedTotalUsd).toFixed(2),
-            )
-            aavePositions[u + chain].spendings = Number(
-              (aavePositions[u + chain].spendings + spendingsUsd / 365).toFixed(2),
-            )
-            aavePositions[u + chain].apr = Number(
-              (
-                ((aavePositions[u + chain].earnings - aavePositions[u + chain].spendings) * 365 * 100) /
-                aavePositions[u + chain].collateralTotalUsd
-              ).toFixed(2),
-            )
-            populate(aavePositions[u + chain].borrows, [asset], vdBalance, div, asset)
-          } else {
-            aavePositions[u + chain] = {
-              collateralTotalUsd: 0,
-              collateralizationUsd: 0,
-              borrowedTotalUsd: usd,
-              spendings: Number((spendingsUsd / 365).toFixed(2)),
-              apr: 0,
-              earnings: 0,
-              healthFactor: '∞',
-              borrows: { [asset]: toDeposit(vdBalance, div, asset) },
-              collaterals: {},
-            }
-          }
-        }
-        populate(aaveVDBalancesByAsset, [asset], vdBalance, div, asset)
-        populate(aaveVDBalancesByChainByAsset, [chain, asset], vdBalance, div, asset)
-      })
-    })
-
-    const aprByVault: { [v: string]: number | string } = {}
-    conf.borrowables.forEach((b, i) => {
-      const [
-        ,
-        underlying,
-        oldTotalBalance,
-        oldTotalBorrows,
-        oldExchangeRate,
-        oldBorrowRate, // sync
-        ,
-        newBorrowRate,
-        newTotalBalance,
-        newTotalBorrows,
-        newExchangeRate,
-        reserveFactor,
-        name,
-        kinkUtilizationRate,
-        ...deposits
-      ] = call1Data.slice(i * callsPerBor, (i + 1) * callsPerBor)
-
-      if (!conf.assets[underlying]) {
-        throw new Error(`${chain} unknown underlying ${underlying} borrowable ${b}`)
-      }
-
-      const asset = conf.assets[underlying]
-      const div = getDiv(asset)
-
-      let balance: bigint = 0n
-      let stakedBalance: bigint = 0n
-
-      for (let i = 0; i < users.length; i++) {
-        const user = users[i]
-        let _deposit = deposits[i] as bigint
-        if (conf.staking[b]) {
-          const stakedBn =
-            call1Data[callsPerBor * conf.borrowables.length + stakingPoolCursor * callsPerStakingPool + 3 + i]
-          _deposit += stakedBn
-          stakedBalance += stakedBn
-        }
-        if (_deposit > 0n) {
-          const bn = (_deposit * newExchangeRate) / ONE
-          const { usd } = toDeposit(bn, div, asset)
-
-          populate(suppliedByChainByAssetByUser, [chain, asset, user], bn, div, asset)
-
-          populate(suppliedByAssetByUser, [asset, user], bn, div, asset)
-          populate(suppliedByChainByBorrowableByUser, [chain, b, user], bn, div, asset)
-          console.log('borrowable deposit', usd)
-          populateSimple(suppliedByUser, [user], usd)
-          populateSimple(suppliedByChainByUser, [chain, user], usd)
-        }
-        balance += _deposit
-      }
-
-      const oldUserSupplied = Math.floor(Number((balance * oldExchangeRate) / ONE))
-      const suppliedBN = (balance * newExchangeRate) / ONE
-      const newUserSupplied = Number(suppliedBN)
-
-      const platform = name.substring(0, name.indexOf(' '))
-      const newSupply = newTotalBorrows + newTotalBalance
-
-      const oldDailyYield = (oldBorrowRate * 24n * 3600n * oldTotalBorrows * (ONE - reserveFactor)) / ONE
-
-      const oldSupply = oldTotalBorrows + oldTotalBalance
-
-      const oldDailyApr = Number(oldDailyYield / oldSupply) / 1e18
-
-      const oldDailyEarnings = Math.floor(oldUserSupplied * oldDailyApr)
-
-      const newDailyYield = (newBorrowRate * 3600n * 24n * newTotalBorrows * (ONE - reserveFactor)) / ONE
-
-      let stakingDailyYield = 0n
-      let stakingDailyEarningsUsd = 0
-      let stakingAPR = 0
-      let stakingDailyEarnings = 0
-      let totalStakedUsd = 0
-      let stakingRewardAsset: string = ''
-
-      const suppliedUsd = Number(((newUserSupplied * getAssetPrice(asset)) / div).toFixed(2))
-      if (conf.staking[b]) {
-        const periodFinish = call1Data[callsPerBor * conf.borrowables.length + stakingPoolCursor * callsPerStakingPool]
-        if (periodFinish > blockTimestamp) {
-          stakingRewardAsset = conf.assets[conf.staking[b].rewardToken]
-          const _div = getDiv(stakingRewardAsset as ASSETS)
-          const rewardRate =
-            call1Data[callsPerBor * conf.borrowables.length + stakingPoolCursor * callsPerStakingPool + 1]
-          const totalSupply: bigint =
-            call1Data[callsPerBor * conf.borrowables.length + stakingPoolCursor * callsPerStakingPool + 2]
-          const yearlyRewardUsd =
-            (Number(rewardRate * 24n * 3600n * 365n) / _div) * getAssetPrice(stakingRewardAsset as ASSETS)
-          stakingDailyYield = (rewardRate * 24n * 3600n * stakedBalance) / totalSupply
-          totalStakedUsd = (Number((totalSupply * newExchangeRate) / ONE) / div) * getAssetPrice(asset)
-          stakingAPR = Number(((yearlyRewardUsd * 100) / totalStakedUsd).toFixed(2))
-        }
-        stakingPoolCursor++
-      }
-
-      const newDailyApr = Number(newDailyYield / newSupply) / 1e18
-      const newDailyEarnings = Math.floor(newUserSupplied * newDailyApr)
-      if (stakingAPR > 0) {
-        const _div = getDiv(stakingRewardAsset as ASSETS)
-        stakingDailyEarningsUsd =
-          stakingDailyYield === 0n
-            ? 0
-            : Number(((Number(stakingDailyYield) * getAssetPrice(stakingRewardAsset as ASSETS)) / _div).toFixed(2))
-        stakingDailyEarnings = Number((Number(stakingDailyYield) / _div).toFixed(4))
-      }
-
-      const utilization = (newTotalBorrows * ONE) / newSupply
-      const availableToDeposit =
-        kinkUtilizationRate >= utilization ? 0n : (newTotalBorrows * ONE) / kinkUtilizationRate - newSupply
-
-      const reinvestPeriod = blockTimestamp - pastVaultStateByBorrowable[b].timestamp
-
-      const v = vaultOrLPByBor[b]
-
-      const bigBalanceChange =
-        vaultBalanceAfterReinvestByVault[v] === pastVaultStateByBorrowable[b].totalBalance
-          ? false
-          : vaultBalanceAfterReinvestByVault[v] > pastVaultStateByBorrowable[b].totalBalance
-          ? ((vaultBalanceAfterReinvestByVault[v] - pastVaultStateByBorrowable[b].totalBalance) * 100n) /
-              pastVaultStateByBorrowable[b].totalBalance >
-            8n
-          : ((pastVaultStateByBorrowable[b].totalBalance - vaultBalanceAfterReinvestByVault[v]) * 100n) /
-              vaultBalanceAfterReinvestByVault[v] >
-            8n
-      const vaultAPR = bigBalanceChange
-        ? 'unknown'
-        : Number(
-            (
-              (Number(vaultExchangeRateAfterReinvestByVault[v] - pastVaultStateByBorrowable[b].exchangeRate) *
-                360000 *
-                24 *
-                365) /
-              reinvestPeriod /
-              Number(pastVaultStateByBorrowable[b].exchangeRate)
-            ).toFixed(2),
-          )
-
-      aprByVault[v] = vaultAPR
-
-      const c = collateralByBorrowable[b]
-      const oppositeSymbol =
-        collateralToBorrowables[c][0] === b
-          ? symbolByBorrowable[collateralToBorrowables[c][1]]
-          : symbolByBorrowable[collateralToBorrowables[c][0]]
-
-      pools.push({
-        platform,
-        borrowable: b,
-        asset,
-        suppliedBN,
-        tvl: Number((Number(newSupply) / div).toFixed(4)),
-        tvlUsd: Number(((Number(newSupply) / div) * getAssetPrice(asset)).toFixed(2)),
-        supplied: Number((newUserSupplied / div).toFixed(4)),
-        stakingDailyEarningsUsd,
-        stakingAPR,
-        stakingDailyEarnings,
-        stakingRewardAsset,
-        suppliedUsd,
-        kink: Number(kinkUtilizationRate) / 1e16,
-        utilization: Number((Number(utilization) / 1e16).toFixed(2)),
-        aprOld: Number((oldDailyApr * 36500).toFixed(2)),
-        aprNew: Number((newDailyApr * 36500).toFixed(2)),
-        earningsOld: Number((oldDailyEarnings / div).toFixed(4)),
-        earningsNew: Number((newDailyEarnings / div).toFixed(4)),
-        earningsOldUsd: Number(((oldDailyEarnings * getAssetPrice(asset)) / div).toFixed(2)),
-        earningsNewUsd: Number(((newDailyEarnings * getAssetPrice(asset)) / div).toFixed(2)),
-        availableToDeposit: Number((Number(availableToDeposit) / div).toFixed(4)),
-        availableToDepositUsd: Number(((Number(availableToDeposit) * getAssetPrice(asset)) / div).toFixed(2)),
-        oppositeSymbol,
-        vaultAPR,
-        vault: vaultOrLPByBor[b],
-        stable: stableByBor[b],
-        chain,
-      })
-
-      populateCumulativeByAsset(
-        cumulativeValuesByChains[chain],
-        asset,
-        oldUserSupplied,
-        newUserSupplied,
-        oldDailyEarnings,
-        newDailyEarnings,
-        newDailyEarnings > oldDailyEarnings ? newDailyEarnings : oldDailyEarnings,
-      )
-      populateCumulativeByAsset(
-        cumulativeValuesByAsset,
-        asset,
-        oldUserSupplied,
-        newUserSupplied,
-        oldDailyEarnings,
-        newDailyEarnings,
-        newDailyEarnings > oldDailyEarnings ? newDailyEarnings : oldDailyEarnings,
-      )
-      // console.log('final aave deposit of', asset, newDailyEarnings, cumulativeValuesByAsset[asset].newDailyEarnings)
-    })
-
-    Object.keys(collateralMap).forEach((col) => {
-      const v = vaultByCollateral[col]
-      users.forEach((u) => {
-        const colBal = balanceByCollateralByUser[col][u]
-        if (colBal === 0n) return
-        const vaultAmount = (colBal * exchangeRateByCollateral[col]) / ONE
-        const lpAmount = (vaultAmount * vaultExchangeRateAfterReinvestByVault[v]) / ONE
-        let positionPrice
-        if (conf.assets[borrowableToUnderlying[collateralToBorrowables[col][0]]]) {
-          const asset = conf.assets[borrowableToUnderlying[collateralToBorrowables[col][0]]]
-          const assetAmount = (lpAmount * reservesByVault[v][0] * 2n) / lpSupplyByVault[v]
-          const div = getDiv(asset)
-          positionPrice = (Number(assetAmount) / div) * getAssetPrice(asset)
-        } else {
-          const asset = conf.assets[borrowableToUnderlying[collateralToBorrowables[col][1]]]
-          const assetAmount = (lpAmount * reservesByVault[v][1] * 2n) / lpSupplyByVault[v]
-          const div = getDiv(asset)
-          positionPrice = (Number(assetAmount) / div) * getAssetPrice(asset)
-        }
-        const earnings =
-          typeof aprByVault[v] === 'number' ? Number(((positionPrice * aprByVault[v]) / 365 / 100).toFixed(2)) : 0
-
-        const symbol = `${
-          symbolByBorrowable[collateralToBorrowables[col][0]] ??
-          conf.assets[borrowableToUnderlying[collateralToBorrowables[col][0]]]
-        }/${
-          symbolByBorrowable[collateralToBorrowables[col][1]] ??
-          conf.assets[borrowableToUnderlying[collateralToBorrowables[col][1]]]
-        }`
-        console.log('collateral earn', u, symbol, positionPrice, earnings)
-        suppliedAsCollateral += positionPrice
-        earningsAsCollateral += earnings
-      })
-    })
-
-    assetAddressesOnAAVE.forEach((aaveAsset: string) => {
-      const asset = conf.assets[aaveAsset]
-      const div = getDiv(asset)
-      // console.log(aaveAsset, aTokenInfo)
-      const utilization = (aTokenInfo[chain][aaveAsset].borrow.bn * ONE) / aTokenInfo[chain][aaveAsset].supply.bn
-      const availableToDeposit =
-        aTokenInfo[chain][aaveAsset].borrow.bn -
-        (aTokenInfo[chain][aaveAsset].supply.bn * aTokenInfo[chain][aaveAsset].kinkUtilizationRatio) / 10n ** 27n
-      const apr = Number((Number(aaveReserveData[chain][aaveAsset][2]) / 1e25).toFixed(2))
-      const earnings = Number(
-        (
-          Number(
-            (aaveReserveData[chain][aaveAsset][2] * aaveABalancesByChainByAssetAddress[chain][aaveAsset].bn) / 365n,
-          ) / 1e27
-        ).toFixed(2),
-      )
-      pools.push({
-        platform: 'AAVE',
-        borrowable: aaveReserveData[chain][aaveAsset][8],
-        asset,
-        suppliedBN: aaveABalancesByChainByAssetAddress[chain][aaveAsset].bn,
-        supplied: aaveABalancesByChainByAssetAddress[chain][aaveAsset].amount,
-        suppliedUsd: aaveABalancesByChainByAssetAddress[chain][aaveAsset].usd,
-        tvl: aTokenInfo[chain][aaveAsset].supply.amount,
-        tvlUsd: aTokenInfo[chain][aaveAsset].supply.usd,
-        stakingDailyEarningsUsd: 0,
-        stakingAPR: 0,
-        stakingDailyEarnings: 0,
-        stakingRewardAsset: '',
-        kink: Number((Number(aTokenInfo[chain][aaveAsset].kinkUtilizationRatio) / 1e25).toFixed(2)),
-        utilization: Number((Number(utilization) / 1e16).toFixed(2)),
-        aprOld: apr,
-        aprNew: apr,
-        earningsOld: Number((earnings / div).toFixed(4)),
-        earningsNew: Number((earnings / div).toFixed(4)),
-        earningsOldUsd: Number(((earnings * getAssetPrice(asset)) / div).toFixed(2)),
-        earningsNewUsd: Number(((earnings * getAssetPrice(asset)) / div).toFixed(2)),
-        availableToDeposit: Number((Number(availableToDeposit < 0 ? 0n : availableToDeposit) / div).toFixed(4)),
-        availableToDepositUsd: Number(
-          ((Number(availableToDeposit < 0 ? 0n : availableToDeposit) * getAssetPrice(asset)) / div).toFixed(2),
-        ),
-        oppositeSymbol: '',
-        vaultAPR: '',
-        vault: '',
-        stable: false,
-        chain,
-      })
-    })
+    // === Build AAVE pool entries ===
+    buildAavePools(ctx, chain, conf, assetAddressesOnAAVE)
   }
 
   await Promise.all(chains.map(callChain))
 
+  // === Post-processing: aggregate stats by chain ===
   for (const c in Chains) {
     for (const a in ASSETS) {
       const div = getDiv(a as ASSETS)
-      const aca = cumulativeValuesByChains[c][a]
+      const aca = ctx.cumulativeValuesByChains[c][a]
       if (aca) {
         aca.currentAPR =
           aca.newUserSupplied === 0 ? 0 : Number(((aca.oldDailyEarnings * 36500) / aca.newUserSupplied).toFixed(2))
@@ -1297,60 +501,60 @@ export default async function load(users: string[]) {
         aca.oldDailyEarnings = Number((aca.oldDailyEarnings / div).toFixed(4))
         aca.newUserSupplied = Number((aca.newUserSupplied / div).toFixed(4))
         aca.maxDailyEarnings = Number((aca.maxDailyEarnings / div).toFixed(4))
-        chainAggregatedStats[c].newUserSuppliedUsd = Number(
-          (chainAggregatedStats[c].newUserSuppliedUsd + aca.newUserSuppliedUsd).toFixed(2),
+        ctx.chainAggregatedStats[c].newUserSuppliedUsd = Number(
+          (ctx.chainAggregatedStats[c].newUserSuppliedUsd + aca.newUserSuppliedUsd).toFixed(2),
         )
-        chainAggregatedStats[c].oldDailyEarningsUsd = Number(
-          (chainAggregatedStats[c].oldDailyEarningsUsd + aca.oldDailyEarningsUsd).toFixed(2),
+        ctx.chainAggregatedStats[c].oldDailyEarningsUsd = Number(
+          (ctx.chainAggregatedStats[c].oldDailyEarningsUsd + aca.oldDailyEarningsUsd).toFixed(2),
         )
-        chainAggregatedStats[c].maxDailyEarningsUsd = Number(
-          (chainAggregatedStats[c].maxDailyEarningsUsd + aca.maxDailyEarningsUsd).toFixed(2),
+        ctx.chainAggregatedStats[c].maxDailyEarningsUsd = Number(
+          (ctx.chainAggregatedStats[c].maxDailyEarningsUsd + aca.maxDailyEarningsUsd).toFixed(2),
         )
-        chainAggregatedStats[c].maxAPR =
-          chainAggregatedStats[c].newUserSuppliedUsd === 0
+        ctx.chainAggregatedStats[c].maxAPR =
+          ctx.chainAggregatedStats[c].newUserSuppliedUsd === 0
             ? 0
             : Number(
                 (
-                  (chainAggregatedStats[c].maxDailyEarningsUsd * 36500) /
-                  chainAggregatedStats[c].newUserSuppliedUsd
+                  (ctx.chainAggregatedStats[c].maxDailyEarningsUsd * 36500) /
+                  ctx.chainAggregatedStats[c].newUserSuppliedUsd
                 ).toFixed(2),
               )
-        chainAggregatedStats[c].currentAPR =
-          chainAggregatedStats[c].newUserSuppliedUsd === 0
+        ctx.chainAggregatedStats[c].currentAPR =
+          ctx.chainAggregatedStats[c].newUserSuppliedUsd === 0
             ? 0
             : Number(
                 (
-                  (chainAggregatedStats[c].oldDailyEarningsUsd * 36500) /
-                  chainAggregatedStats[c].newUserSuppliedUsd
+                  (ctx.chainAggregatedStats[c].oldDailyEarningsUsd * 36500) /
+                  ctx.chainAggregatedStats[c].newUserSuppliedUsd
                 ).toFixed(2),
               )
-        if (aca.newUserSuppliedUsd + idleBalancesByChain[c][a].usd === 0) {
-          delete cumulativeValuesByChains[c][a]
+        if (aca.newUserSuppliedUsd + ctx.idleBalancesByChain[c][a].usd === 0) {
+          delete ctx.cumulativeValuesByChains[c][a]
         }
       }
     }
   }
 
-  Object.entries(idleBalancesByChain).forEach(([chain, props]) => {
-    chainAggregatedStats[chain].usd = Number(
+  Object.entries(ctx.idleBalancesByChain).forEach(([chain, props]) => {
+    ctx.chainAggregatedStats[chain].usd = Number(
       Object.values(props)
         .reduce((acc, { usd }) => acc + usd, 0)
         .toFixed(2),
     )
   })
 
-  const sortedChains = Object.keys(cumulativeValuesByChains).sort((a, b) => {
-    return chainAggregatedStats[b].newUserSuppliedUsd - chainAggregatedStats[a].newUserSuppliedUsd
+  const sortedChains = Object.keys(ctx.cumulativeValuesByChains).sort((a, b) => {
+    return ctx.chainAggregatedStats[b].newUserSuppliedUsd - ctx.chainAggregatedStats[a].newUserSuppliedUsd
   })
 
   sortedChains.forEach((chain, i) => {
-    const val = cumulativeValuesByChains[chain]
+    const val = ctx.cumulativeValuesByChains[chain]
     const sortedAssets = Object.keys(val).sort((assetA, assetB) => {
       return (
         val[assetB].newUserSuppliedUsd +
-        (idleBalancesByChain[chain][assetB] ? idleBalancesByChain[chain][assetB].usd : 0) -
+        (ctx.idleBalancesByChain[chain][assetB] ? ctx.idleBalancesByChain[chain][assetB].usd : 0) -
         (val[assetA].newUserSuppliedUsd +
-          (idleBalancesByChain[chain][assetA] ? idleBalancesByChain[chain][assetA].usd : 0))
+          (ctx.idleBalancesByChain[chain][assetA] ? ctx.idleBalancesByChain[chain][assetA].usd : 0))
       )
     })
     sortedAssets.forEach((x, j) => {
@@ -1360,65 +564,49 @@ export default async function load(users: string[]) {
       val[x] = val2
     })
     if (i === 0) return
-    delete cumulativeValuesByChains[chain]
-    cumulativeValuesByChains[chain] = val
+    delete ctx.cumulativeValuesByChains[chain]
+    ctx.cumulativeValuesByChains[chain] = val
   })
 
-  console.log('compoundBorrowingReward.usd', compoundBorrowingReward.usd)
+  console.log('compoundBorrowingReward.usd', ctx.compoundBorrowingReward.usd)
 
-  console.log('supplied as collateral', suppliedAsCollateral)
-  console.log('earnings as collateral', earningsAsCollateral)
+  console.log('supplied as collateral', ctx.suppliedAsCollateral)
+  console.log('earnings as collateral', ctx.earningsAsCollateral)
 
+  // === Aggregate stats by asset ===
   let totalDeposited = 0
-  let oldTotalEarnings = compoundBorrowingReward.usd / 365
-  let newTotalEarnings = compoundBorrowingReward.usd / 365
-  let maxTotalEarnings = compoundBorrowingReward.usd / 365
+  let oldTotalEarnings = ctx.compoundBorrowingReward.usd / 365
+  let newTotalEarnings = ctx.compoundBorrowingReward.usd / 365
+  let maxTotalEarnings = ctx.compoundBorrowingReward.usd / 365
   for (const a in ASSETS) {
     const price = getAssetPrice(a as ASSETS)
     const div = getDiv(a as ASSETS)
-    const ca = cumulativeValuesByAsset[a]
+    const ca = ctx.cumulativeValuesByAsset[a]
     if (ca) {
-      // if (aaveABalancesByAsset[a]) {
-      //   totalDeposited += Number(aaveABalancesByAsset[a].usd)
-      //   if (aaveABalancesByAsset[a].usd > 0) {
-      //     console.log('aave deposit', a, aaveABalancesByAsset[a])
-      //   }
-      // }
-      // if (compoundCollateralByAsset[a]) {
-      //   totalDeposited += Number(compoundCollateralByAsset[a].usd)
-      //   if (compoundCollateralByAsset[a].usd > 0) {
-      //     console.log('compound deposit', a, compoundCollateralByAsset[a])
-      //   }
-      // }
-      if (aaveVDBalancesByAsset[a]) {
-        totalDeposited -= Number(aaveVDBalancesByAsset[a].usd)
-        if (aaveVDBalancesByAsset[a].usd > 0) {
-          console.log('aave debt', a, aaveVDBalancesByAsset[a])
+      if (ctx.aaveVDBalancesByAsset[a]) {
+        totalDeposited -= Number(ctx.aaveVDBalancesByAsset[a].usd)
+        if (ctx.aaveVDBalancesByAsset[a].usd > 0) {
+          console.log('aave debt', a, ctx.aaveVDBalancesByAsset[a])
         }
       }
-      if (compoundDebtByAsset[a]) {
-        totalDeposited -= Number(compoundDebtByAsset[a].usd)
-        if (compoundDebtByAsset[a].usd > 0) {
-          console.log('compound debt', a, compoundDebtByAsset[a])
+      if (ctx.compoundDebtByAsset[a]) {
+        totalDeposited -= Number(ctx.compoundDebtByAsset[a].usd)
+        if (ctx.compoundDebtByAsset[a].usd > 0) {
+          console.log('compound debt', a, ctx.compoundDebtByAsset[a])
         }
       }
-      // if (aaveAEarningsByAsset[a]) {
-      //   oldTotalEarnings += Number(aaveAEarningsByAsset[a].usd) / 365
-      //   newTotalEarnings += Number(aaveAEarningsByAsset[a].usd) / 365
-      //   maxTotalEarnings += Number(aaveAEarningsByAsset[a].usd) / 365
-      // }
-      if (aaveVDSpendingsByAsset[a]) {
-        oldTotalEarnings -= Number(aaveVDSpendingsByAsset[a].usd) / 365
-        newTotalEarnings -= Number(aaveVDSpendingsByAsset[a].usd) / 365
-        maxTotalEarnings -= Number(aaveVDSpendingsByAsset[a].usd) / 365
+      if (ctx.aaveVDSpendingsByAsset[a]) {
+        oldTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
+        newTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
+        maxTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
       }
-      if (compoundSpendingsByAsset[a]) {
-        if (compoundSpendingsByAsset[a].usd > 0) {
-          console.log('compound spendings', a, Number(compoundSpendingsByAsset[a].usd) / 365)
+      if (ctx.compoundSpendingsByAsset[a]) {
+        if (ctx.compoundSpendingsByAsset[a].usd > 0) {
+          console.log('compound spendings', a, Number(ctx.compoundSpendingsByAsset[a].usd) / 365)
         }
-        oldTotalEarnings -= Number(compoundSpendingsByAsset[a].usd) / 365
-        newTotalEarnings -= Number(compoundSpendingsByAsset[a].usd) / 365
-        maxTotalEarnings -= Number(compoundSpendingsByAsset[a].usd) / 365
+        oldTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
+        newTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
+        maxTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
       }
       const [depUsd, oldEarnings, newEarinings, maxEarnings] = formatStats(ca, price, div)
       totalDeposited += Number(depUsd)
@@ -1434,76 +622,53 @@ export default async function load(users: string[]) {
       ca.oldDailyEarnings = Number((ca.oldDailyEarnings / div).toFixed(4))
       ca.newUserSupplied = Number((ca.newUserSupplied / div).toFixed(4))
       ca.maxDailyEarnings = Number((ca.maxDailyEarnings / div).toFixed(4))
-      if (cumulativeValuesByAsset[a].newUserSuppliedUsd + idleBalancesByAsset[a].usd < 1) {
-        delete cumulativeValuesByAsset[a]
+      if (ctx.cumulativeValuesByAsset[a].newUserSuppliedUsd + ctx.idleBalancesByAsset[a].usd < 1) {
+        delete ctx.cumulativeValuesByAsset[a]
       }
     }
   }
 
-  const sortedAssets = Object.keys(cumulativeValuesByAsset).sort((a, b) => {
-    return cumulativeValuesByAsset[b].newUserSuppliedUsd - cumulativeValuesByAsset[a].newUserSuppliedUsd
+  // === Sort and filter ===
+  const sortedAssets = Object.keys(ctx.cumulativeValuesByAsset).sort((a, b) => {
+    return ctx.cumulativeValuesByAsset[b].newUserSuppliedUsd - ctx.cumulativeValuesByAsset[a].newUserSuppliedUsd
   })
 
   sortedAssets.forEach((x, i) => {
     if (i === 0) return
-    const val = cumulativeValuesByAsset[x]
-    delete cumulativeValuesByAsset[x]
-    cumulativeValuesByAsset[x] = val
+    const val = ctx.cumulativeValuesByAsset[x]
+    delete ctx.cumulativeValuesByAsset[x]
+    ctx.cumulativeValuesByAsset[x] = val
   })
 
-  sortByUserSimple(idleBalancesByUser)
-  sortByUserSimple(suppliedByUser)
+  sortByUserSimple(ctx.idleBalancesByUser)
+  sortByUserSimple(ctx.suppliedByUser)
 
-  const sortedIds = Object.keys(aavePositions).sort((a, b) => {
-    return aavePositions[b].collateralTotalUsd - aavePositions[a].collateralTotalUsd
+  const sortedIds = Object.keys(ctx.aavePositions).sort((a, b) => {
+    return ctx.aavePositions[b].collateralTotalUsd - ctx.aavePositions[a].collateralTotalUsd
   })
   sortedIds.forEach((x, i) => {
     if (i === 0) return
-    const val = aavePositions[x]
-    delete aavePositions[x]
-    aavePositions[x] = val
+    const val = ctx.aavePositions[x]
+    delete ctx.aavePositions[x]
+    ctx.aavePositions[x] = val
   })
 
-  function sortByUserDeposit(byUser: { [user: string]: Deposit }) {
-    const sortedUsers = Object.keys(byUser).sort((a, b) => {
-      return byUser[b].usd === byUser[a].usd ? byUser[b].amount - byUser[a].amount : byUser[b].usd - byUser[a].usd
-    })
-    sortedUsers.forEach((x, i) => {
-      if (i === 0) return
-      const val = byUser[x]
-      delete byUser[x]
-      byUser[x] = val
-    })
-  }
-
-  function sortByUserSimple(byUser: { [user: string]: number }) {
-    const sortedUsers = Object.keys(byUser).sort((a, b) => {
-      return byUser[b] - byUser[a]
-    })
-    sortedUsers.forEach((x, i) => {
-      if (i === 0) return
-      const val = byUser[x]
-      delete byUser[x]
-      byUser[x] = val
-    })
-  }
-
-  ;[idleBalancesByAssetByUser, suppliedByAssetByUser].forEach((userMap) => {
+  ;[ctx.idleBalancesByAssetByUser, ctx.suppliedByAssetByUser].forEach((userMap) => {
     // eslint-disable-next-line no-unused-vars
     Object.entries(userMap).forEach(([_, byUser]) => {
       sortByUserDeposit(byUser)
     })
   })
-  ;[idleBalancesByChainByAssetByUser, suppliedByChainByAssetByUser].forEach((userMap) => {
+  ;[ctx.idleBalancesByChainByAssetByUser, ctx.suppliedByChainByAssetByUser].forEach((userMap) => {
     Object.values(userMap).forEach((idleByAssetByUser) => {
       Object.values(idleByAssetByUser).forEach(sortByUserDeposit)
     })
   })
-  ;[idleBalancesByChainByUser, suppliedByChainByUser].forEach((userMap) => {
+  ;[ctx.idleBalancesByChainByUser, ctx.suppliedByChainByUser].forEach((userMap) => {
     Object.values(userMap).forEach(sortByUserSimple)
   })
 
-  Object.values(suppliedByChainByBorrowableByUser).forEach((chau) => {
+  Object.values(ctx.suppliedByChainByBorrowableByUser).forEach((chau) => {
     Object.values(chau).forEach(sortByUserDeposit)
   })
 
@@ -1512,11 +677,11 @@ export default async function load(users: string[]) {
   const poolChains: { [chain: string]: true } = {}
   const poolAssets: { [chain: string]: true } = {}
 
-  const goodPools = pools
+  const goodPools = ctx.pools
     .filter((x) => {
       const good =
         x.suppliedUsd > 1 ||
-        (x.stakingAPR + x.aprNew > aprThreshold && x.availableToDepositUsd > capacityThreshold && x.tvlUsd > minTVL)
+        (x.stakingAPR + x.aprNew > POOL_FILTER_APR_THRESHOLD && x.availableToDepositUsd > POOL_FILTER_CAPACITY_THRESHOLD && x.tvlUsd > POOL_FILTER_MIN_TVL)
       if (good) {
         poolChains[x.chain] = true
         poolAssets[x.asset] = true
@@ -1524,103 +689,50 @@ export default async function load(users: string[]) {
       return good
     })
     .sort((a, b) => {
-      // const aTVL = a.tvlUsd < 1_000 ? 1 : a.tvlUsd
-      // const bTVL = b.tvlUsd < 1_000 ? 1 : b.tvlUsd
       return b.aprNew + b.stakingAPR - (a.aprNew + a.stakingAPR)
     })
 
   const currentAPR = ((oldTotalEarnings * 36500) / totalDeposited).toFixed(2)
 
-  const usd = Object.values(idleBalancesByAsset).reduce((acc, curr) => {
+  const usd = Object.values(ctx.idleBalancesByAsset).reduce((acc, curr) => {
     return acc + curr.usd
   }, 0)
 
   const res = {
     goodPools,
-    idleBalancesByAsset,
-    idleBalancesByChain,
-    idleBalancesByChainByUser,
-    idleBalancesByChainByAssetByUser,
-    idleBalancesByAssetByUser,
-    idleBalancesByUser,
-    cumulativeValuesByChains,
-    cumulativeValuesByAsset,
-    suppliedByUser,
-    suppliedByAssetByUser,
-    suppliedByChainByUser,
-    suppliedByChainByAssetByUser,
-    suppliedByChainByBorrowableByUser,
-    compoundBorrowingRewardByBorrowedAsset,
-    morphoRewardsByAsset,
+    idleBalancesByAsset: ctx.idleBalancesByAsset,
+    idleBalancesByChain: ctx.idleBalancesByChain,
+    idleBalancesByChainByUser: ctx.idleBalancesByChainByUser,
+    idleBalancesByChainByAssetByUser: ctx.idleBalancesByChainByAssetByUser,
+    idleBalancesByAssetByUser: ctx.idleBalancesByAssetByUser,
+    idleBalancesByUser: ctx.idleBalancesByUser,
+    cumulativeValuesByChains: ctx.cumulativeValuesByChains,
+    cumulativeValuesByAsset: ctx.cumulativeValuesByAsset,
+    suppliedByUser: ctx.suppliedByUser,
+    suppliedByAssetByUser: ctx.suppliedByAssetByUser,
+    suppliedByChainByUser: ctx.suppliedByChainByUser,
+    suppliedByChainByAssetByUser: ctx.suppliedByChainByAssetByUser,
+    suppliedByChainByBorrowableByUser: ctx.suppliedByChainByBorrowableByUser,
+    compoundBorrowingRewardByBorrowedAsset: ctx.compoundBorrowingRewardByBorrowedAsset,
+    morphoRewardsByAsset: ctx.morphoRewardsByAsset,
     totalDeposited: totalDeposited.toFixed(2),
     oldTotalEarnings: oldTotalEarnings.toFixed(2),
     newTotalEarnings: newTotalEarnings.toFixed(2),
     maxTotalEarnings: maxTotalEarnings.toFixed(2),
     maxAPR,
     currentAPR,
-    aavePositions,
-    chainAggregatedStats,
+    aavePositions: ctx.aavePositions,
+    chainAggregatedStats: ctx.chainAggregatedStats,
     poolAssets: Object.keys(poolAssets),
     poolChains: Object.keys(poolChains),
     usd: usd.toFixed(2),
     users,
-    compoundBorrowingInfo,
+    compoundBorrowingInfo: ctx.compoundBorrowingInfo,
   }
 
   ;(BigInt.prototype as any).toJSON = function () {
     return this.toString()
   }
 
-  // console.log(JSON.stringify(res).toString())
-
   return res
-}
-
-function populateCumulativeByAsset(
-  cumulativeValuesByAsset: any,
-  asset: ASSETS,
-  oldUserSupplied: number,
-  newUserSupplied: number,
-  oldDailyEarnings: number,
-  newDailyEarnings: number,
-  maxDailyEarnings: number,
-) {
-  if (cumulativeValuesByAsset[asset]) {
-    cumulativeValuesByAsset[asset].oldUserSupplied += oldUserSupplied
-    cumulativeValuesByAsset[asset].newUserSupplied += newUserSupplied
-    cumulativeValuesByAsset[asset].oldDailyEarnings += oldDailyEarnings
-    cumulativeValuesByAsset[asset].newDailyEarnings += newDailyEarnings
-    cumulativeValuesByAsset[asset].maxDailyEarnings += maxDailyEarnings
-  } else {
-    cumulativeValuesByAsset[asset] = {
-      oldUserSupplied,
-      newUserSupplied,
-      oldDailyEarnings,
-      newDailyEarnings,
-      newUserSuppliedUsd: 0,
-      oldDailyEarningsUsd: 0,
-      maxDailyEarningsUsd: 0,
-      currentAPR: 0,
-      maxAPR: 0,
-      maxDailyEarnings,
-    }
-  }
-}
-
-function formatStats(stats: AssetStats, price: number, div: number) {
-  return [
-    ((stats.newUserSupplied / div) * price).toFixed(2),
-    ((stats.oldDailyEarnings / div) * price).toFixed(2),
-    ((stats.newDailyEarnings / div) * price).toFixed(2),
-    ((stats.maxDailyEarnings / div) * price).toFixed(2),
-  ]
-}
-
-const LIQUIDATION_THRESHOLD_MASK = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000FFFF')
-const LIQUIDATION_THRESHOLD_START_BIT_POSITION = 16n
-
-function getLiquidationThreshold(configuration: bigint): number {
-  console.log('configuration', configuration)
-  // eslint-disable-next-line no-bitwise
-  return Number((configuration & ~LIQUIDATION_THRESHOLD_MASK) >> LIQUIDATION_THRESHOLD_START_BIT_POSITION)
 }
