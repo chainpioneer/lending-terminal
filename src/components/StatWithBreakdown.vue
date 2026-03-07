@@ -11,9 +11,13 @@ function toggle(event: any) { popover.value?.toggle(event) }
 <template>
   <p class="m-0">
     <slot />
-    <label v-if="showBreakdown" style="cursor: pointer" @click="toggle">ℹ️</label>
+    <label v-if="showBreakdown" @click="toggle">ℹ️</label>
   </p>
   <Popover ref="popover">
     <slot name="breakdown" />
   </Popover>
 </template>
+
+<style scoped>
+label { cursor: pointer }
+</style>

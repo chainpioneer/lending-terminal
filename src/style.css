@@ -29,9 +29,26 @@ body {
 }
 
 h1 {
-  font-size: 3.2em;
+  font-size: 2em;
   line-height: 1.1;
 }
+
+.mono { font-family: monospace }
+.text-secondary { opacity: 0.6 }
+.text-positive { color: var(--p-green-400) }
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-icon {
+  border-radius: 50%;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+.filter-icon:hover { transform: scale(1.1) }
 
 button {
   border-radius: 8px;

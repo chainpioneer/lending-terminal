@@ -151,11 +151,11 @@ function syncButtonLabel(pool: Pool): string {
   <h1>{{ msg }}</h1>
   <Card>
     <template #content>
-      <InputText v-model="addresses" style="width: 97%" placeholder="input addresses" size="large"/>
+      <InputText v-model="addresses" class="w-full" placeholder="input addresses" size="large"/>
     </template>
     <template #footer>
       <div>
-        <div v-if="fetchingData" style="text-align: center">
+        <div v-if="fetchingData" class="text-center">
           <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="8" fill="transparent"
                            animationDuration=".5s" aria-label="Custom ProgressSpinner" />
         </div>
@@ -175,7 +175,7 @@ function syncButtonLabel(pool: Pool): string {
               <template #breakdown>
                 <div v-for="(usd, address) in data.suppliedByUser" :key="address" class="flex items-center gap-2">
                   <div>
-                      <span style="font-family: monospace">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
+                      <span class="mono">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
                   </div>
                 </div>
               </template>
@@ -191,7 +191,7 @@ function syncButtonLabel(pool: Pool): string {
               <template #breakdown>
                 <div v-for="(usd, address) in data.idleBalancesByUser" :key="address" class="flex items-center gap-2">
                   <div>
-                      <span style="font-family: monospace">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
+                      <span class="mono">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
                   </div>
                 </div>
               </template>
@@ -202,7 +202,7 @@ function syncButtonLabel(pool: Pool): string {
   </Panel>
 
   <Panel header="L&B positions" class="toggleable-area" toggleable  :collapsed="collapsed.lending" @update:collapsed="(event) => { setCollapsed('lending', event) }">
-      <div class="asset-summarized-info">
+      <div class="card-grid">
         <template v-if="data" v-for="(chainProps, chain) in data.compoundBorrowingInfo" :key="chain">
          <template v-if="data" v-for="(marketProps, market) in chainProps" :key="market">
           <template v-if="data" v-for="(positionProps, user) in marketProps.positions" :key="user">
@@ -215,7 +215,7 @@ function syncButtonLabel(pool: Pool): string {
                 Supplied: {{toUSDCurrency(positionProps.collateralTotalUsd)}}
                 <template v-for="(collateralProps, collateral) in marketProps.collaterals">
                   <template v-if="collateralProps[user] && collateralProps[user].bn > 0">
-                    <div><span style="color: gray">{{ collateralProps[user].amount }} {{marketProps.collateralToAsset[collateral]}} ({{toUSDCurrency(collateralProps[user].usd)}})</span></div>
+                    <div><span class="text-secondary">{{ collateralProps[user].amount }} {{marketProps.collateralToAsset[collateral]}} ({{toUSDCurrency(collateralProps[user].usd)}})</span></div>
                   </template>
                 </template>
 
@@ -241,14 +241,14 @@ function syncButtonLabel(pool: Pool): string {
               Supplied: {{toUSDCurrency(positionProps.collateralTotalUsd)}}
               <template v-for="(collateralProps, asset) in positionProps.collaterals">
                 <template v-if="collateralProps.bn > 0">
-                  <div><span style="color: gray">{{ collateralProps.amount }} {{asset}} ({{toUSDCurrency(collateralProps.usd)}})</span></div>
+                  <div><span class="text-secondary">{{ collateralProps.amount }} {{asset}} ({{toUSDCurrency(collateralProps.usd)}})</span></div>
                 </template>
               </template>
 
               <div>Borrowed: {{toUSDCurrency(positionProps.borrowedTotalUsd)}}</div>
               <template v-for="(borrowProps, asset) in positionProps.borrows">
                 <template v-if="borrowProps.bn > 0">
-                  <div><span style="color: gray">{{ borrowProps.amount }} {{asset}} ({{toUSDCurrency(borrowProps.usd)}})</span></div>
+                  <div><span class="text-secondary">{{ borrowProps.amount }} {{asset}} ({{toUSDCurrency(borrowProps.usd)}})</span></div>
                 </template>
               </template>
               <div>Daily borrowing cost: {{toUSDCurrency(positionProps.spendings)}}</div>
@@ -256,7 +256,7 @@ function syncButtonLabel(pool: Pool): string {
               <div>Resulting APR: {{positionProps.apr}}%</div>
               <div>Health factor: {{positionProps.healthFactor}}</div>
 
-              <div style="display: flex; justify-content: center; align-items: center;">
+              <div class="flex justify-center items-center">
                 <Button as="a" label="Go to AAVE" severity="secondary" outlined class="w-full" :href='linkToPool({ vault: "", platform: "AAVE", stable: false, chain: (userChain as unknown as string).substring(42) as Chains })' target="_blank" rel="noopener" />
               </div>
             </template>
@@ -266,7 +266,7 @@ function syncButtonLabel(pool: Pool): string {
   </Panel>
 
   <Panel header="Liquidity by assets" class="toggleable-area" toggleable  :collapsed="collapsed.assets" @update:collapsed="(event) => { setCollapsed('assets', event) }">
-      <div class="asset-summarized-info">
+      <div class="card-grid">
         <template v-if="data" v-for="(assetProps, asset) in data.cumulativeValuesByAsset" :key="asset">
           <Card class="card-chain">
             <template #title>
@@ -278,15 +278,15 @@ function syncButtonLabel(pool: Pool): string {
                 <template #breakdown>
                   <div v-for="({ amount, usd }, address) in data.suppliedByAssetByUser[asset]" :key="address" class="flex items-center gap-2">
                     <div>
-                        <span style="font-family: monospace">{{ address }}</span>: <span>{{amount}} ({{ toUSDCurrency(usd) }})</span>
+                        <span class="mono">{{ address }}</span>: <span>{{amount}} ({{ toUSDCurrency(usd) }})</span>
                     </div>
                   </div>
                 </template>
               </StatWithBreakdown>
               <p class="m-0">
                 Daily earnings: {{ assetProps.oldDailyEarnings }} ({{toUSDCurrency(assetProps.oldDailyEarningsUsd)}}) -> {{ assetProps.maxDailyEarnings }} ({{toUSDCurrency(assetProps.maxDailyEarningsUsd)}})
-                <span style="color: green" v-if="data.compoundBorrowingRewardByBorrowedAsset[asset]"> +{{data.compoundBorrowingRewardByBorrowedAsset[asset].amount}} {{ASSETS.COMP}} ({{toUSDCurrency(data.compoundBorrowingRewardByBorrowedAsset[asset].usd)}})</span>
-                <span style="color: green" v-if="data.morphoRewardsByAsset[asset]"> +{{data.morphoRewardsByAsset[asset].amount}} {{ASSETS.WLD}} ({{toUSDCurrency(data.morphoRewardsByAsset[asset].usd)}})</span>
+                <span class="text-positive" v-if="data.compoundBorrowingRewardByBorrowedAsset[asset]"> +{{data.compoundBorrowingRewardByBorrowedAsset[asset].amount}} {{ASSETS.COMP}} ({{toUSDCurrency(data.compoundBorrowingRewardByBorrowedAsset[asset].usd)}})</span>
+                <span class="text-positive" v-if="data.morphoRewardsByAsset[asset]"> +{{data.morphoRewardsByAsset[asset].amount}} {{ASSETS.WLD}} ({{toUSDCurrency(data.morphoRewardsByAsset[asset].usd)}})</span>
               </p>
               <p class="m-0">
                 APR: {{assetProps.currentAPR}}% -> {{assetProps.maxAPR}}%
@@ -296,7 +296,7 @@ function syncButtonLabel(pool: Pool): string {
                 <template #breakdown>
                   <div v-for="({ amount, usd }, address) in data.idleBalancesByAssetByUser[asset]" :key="address" class="flex items-center gap-2">
                     <div>
-                        <span style="font-family: monospace">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                        <span class="mono">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
                     </div>
                   </div>
                 </template>
@@ -308,10 +308,10 @@ function syncButtonLabel(pool: Pool): string {
   </Panel>
 
   <Panel header="Liquidity by chains" class="toggleable-area" toggleable  :collapsed="collapsed.chains" @update:collapsed="(event) => { setCollapsed('chains', event) }">
-      <div class="chain-summarized-info">
+      <div class="card-grid">
         <template v-if="data" v-for="(chainProps, chain) in data.cumulativeValuesByChains">
           <Card class="card-chain">
-            <template #title style="text-align: center" >
+            <template #title>
             <Image :src='chainImgSrc(chain)' :alt='chain' width="50px" />
             </template>
             <template #content>
@@ -320,7 +320,7 @@ function syncButtonLabel(pool: Pool): string {
                 <template #breakdown>
                   <div v-for="(usd, address) in data.suppliedByChainByUser[chain]" :key="address" class="flex items-center gap-2">
                     <div>
-                        <span style="font-family: monospace">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
+                        <span class="mono">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
                     </div>
                   </div>
                 </template>
@@ -336,7 +336,7 @@ function syncButtonLabel(pool: Pool): string {
                 <template #breakdown>
                   <div v-for="(usd, address) in data.idleBalancesByChainByUser[chain]" :key="address" class="flex items-center gap-2">
                     <div>
-                        <span style="font-family: monospace">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
+                        <span class="mono">{{ address }}</span>: <span>{{ toUSDCurrency(usd) }}</span>
                     </div>
                   </div>
                 </template>
@@ -353,7 +353,7 @@ function syncButtonLabel(pool: Pool): string {
                         <template #breakdown>
                           <div v-for="({ amount, usd }, address) in data.suppliedByChainByAssetByUser[chain][asset]" :key="address" class="flex items-center gap-2">
                             <div>
-                              <span style="font-family: monospace">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                              <span class="mono">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
                             </div>
                           </div>
                         </template>
@@ -370,7 +370,7 @@ function syncButtonLabel(pool: Pool): string {
                           <span class="font-medium block mb-2">Idle {{asset}} balances on {{chain}}</span>
                           <div v-for="({ amount, usd }, address) in data.idleBalancesByChainByAssetByUser[chain][asset]" :key="address" class="flex items-center gap-2">
                             <div>
-                              <span style="font-family: monospace">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                              <span class="mono">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
                             </div>
                           </div>
                         </template>
@@ -387,33 +387,33 @@ function syncButtonLabel(pool: Pool): string {
 
   <Card class="card-block">
     <template #subtitle v-if="data">
-        <div style="display: flex; justify-content: space-between; flex-wrap: wrap">
+        <div class="filter-bar">
           <div style="text-align: left">
-            <div style="margin-bottom: 5px; text-align: left">
+            <div class="filter-label">
               <label>My deposits</label>
             </div>
             <ToggleSwitch v-model="onlyMyDeposits" />
           </div>
           <div>
-            <div style="margin-bottom: 5px; text-align: left">
+            <div class="filter-label">
               <label>Select chains</label>
             </div>
             <div>
               <component v-for="chain in data.poolChains" @click="toggleChainSelected(chain)">
                 <Image :src='chainImgSrc(chain)' :alt='chain' width="30px"
-                 :style="`border-radius: 100%; box-shadow: 0 3px 7px -6px black; margin-right: 10px; opacity: ${selectedChains[chain] ? '100%' : '10%'}; cursor: pointer`"
+                 class="filter-icon" :style="{ opacity: selectedChains[chain] ? 1 : 0.1 }"
                 />
               </component>
             </div>
           </div>
           <div>
-            <div style="margin-bottom: 5px; text-align: left">
+            <div class="filter-label">
               <label>Select assets</label>
             </div>
             <div>
               <component v-for="asset in data.poolAssets" @click="toggleAssetSelected(asset)">
                 <Image :src='assetImgSrc(asset)' :alt='asset' width="30px"
-                 :style="`border-radius: 100%; box-shadow: 0 3px 7px -6px black; margin-right: 10px; opacity: ${selectedAssets[asset] ? '100%' : '10%'}; cursor: pointer`"
+                 class="filter-icon" :style="{ opacity: selectedAssets[asset] ? 1 : 0.1 }"
                 />
               </component>
             </div>
@@ -421,12 +421,12 @@ function syncButtonLabel(pool: Pool): string {
         </div>
     </template>
     <template #content>
-      <div class="asset-summarized-info">
+      <div class="card-grid">
         <template v-if="data" v-for="pool in data.goodPools">
           <Card class="card-pool" v-if="selectedChains[pool.chain] && selectedAssets[pool.asset] && (!onlyMyDeposits || pool.suppliedBN > 0)">
             <template #title>{{pool.platform === 'AAVE' ? '' : 'Collateral:'}} {{pool.asset}}{{pool.oppositeSymbol ? '/' : ''}}{{pool.oppositeSymbol}} ({{pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%'}})</template>
             <template #subtitle>
-              <a target="_blank" rel="noopener" :href="linkToExplorer(pool)" style="font-family: monospace">{{pool.borrowable}}</a>
+              <a target="_blank" rel="noopener" :href="linkToExplorer(pool)" class="mono">{{pool.borrowable}}</a>
             </template>
             <template #content>
               <StatWithBreakdown :showBreakdown="data.users.length > 1 && !!data.suppliedByChainByBorrowableByUser[pool.chain] && !!data.suppliedByChainByBorrowableByUser[pool.chain][pool.borrowable]">
@@ -434,18 +434,18 @@ function syncButtonLabel(pool: Pool): string {
                 <template #breakdown>
                   <div v-for="({ amount, usd }, address) in data.suppliedByChainByBorrowableByUser[pool.chain][pool.borrowable]" :key="address" class="flex items-center gap-2">
                     <div>
-                      <span style="font-family: monospace">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                      <span class="mono">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
                     </div>
                   </div>
                 </template>
               </StatWithBreakdown>
               <p class="m-0">
                 Daily earnings: {{ pool.earningsOld }} ({{toUSDCurrency(pool.earningsOldUsd)}}) -> {{ pool.earningsNew }} ({{toUSDCurrency(pool.earningsNewUsd)}})
-                <span style="color: green" v-if="pool.stakingDailyEarnings"> +{{pool.stakingDailyEarnings}} {{pool.stakingRewardAsset}} ({{toUSDCurrency(pool.stakingDailyEarningsUsd)}})</span>
+                <span class="text-positive" v-if="pool.stakingDailyEarnings"> +{{pool.stakingDailyEarnings}} {{pool.stakingRewardAsset}} ({{toUSDCurrency(pool.stakingDailyEarningsUsd)}})</span>
               </p>
               <p class="m-0">
                 APR: {{pool.aprOld}}% -> {{pool.aprNew}}%
-                <span style="color: green" v-if="pool.stakingAPR"> +{{pool.stakingAPR}}% ({{pool.stakingRewardAsset}})</span>
+                <span class="text-positive" v-if="pool.stakingAPR"> +{{pool.stakingAPR}}% ({{pool.stakingRewardAsset}})</span>
                 <label v-if="(
                     (
                         data.cumulativeValuesByAsset[pool.asset] && data.cumulativeValuesByAsset[pool.asset].newUserSupplied > 0) ||
@@ -461,7 +461,7 @@ function syncButtonLabel(pool: Pool): string {
                 <template #breakdown>
                   <div v-for="({ amount, usd }, address) in data.idleBalancesByChainByAssetByUser?.[pool.chain]?.[pool.asset]" :key="address" class="flex items-center gap-2">
                     <div>
-                      <span style="font-family: monospace">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                      <span class="mono">{{ address }}</span>: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
                     </div>
                   </div>
                 </template>
@@ -471,11 +471,11 @@ function syncButtonLabel(pool: Pool): string {
               </p>
             </template>
             <template #footer>
-                <div style="display: flex; justify-content: center; align-items: center;">
+                <div class="flex justify-center items-center">
                     <Button as="a" label="Go to pool" severity="secondary" outlined class="w-full" :href='linkToPool(pool)' target="_blank" rel="noopener" />
                     <Button v-if='hasEthereum && pool.earningsNewUsd > pool.earningsOldUsd' @click='handleSyncOrConnect(pool)' :label='syncButtonLabel(pool)' class="w-full" />
                 </div>
-                <div style="display: flex; align-items: center; justify-content: space-between">
+                <div class="flex items-center justify-between">
                   <div>
                     <Image :src='chainImgSrc(pool.chain)' :alt='pool.chain' width="25px"/>
                     <Image :src='platformImgSrc(pool.platform)' :alt='pool.platform' width="25px"/>
@@ -492,43 +492,82 @@ function syncButtonLabel(pool: Pool): string {
 
 <style scoped>
 
-.chain-summarized-info {
-  margin: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-}
-
 .toggleable-area {
   margin: 1rem;
-  min-width: 570px;
 }
 
 .card-block {
   margin: 1rem;
-  flex-wrap: wrap;
-  min-width: 570px;
 }
 
-.asset-summarized-info {
-  margin: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.75rem;
+  padding: 0.5rem;
 }
 
-.card-chain {
-  flex: 0 1 max(32%, 300px);
-  margin: 5px;
-}
-
-.card-pool {
-  margin: 5px;
-  width: 365px;
-}
-
+.card-pool,
+.card-chain,
 .card-asset {
-  flex: 0 1 max(32%, 300px);
-  margin: 5px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.card-pool:hover,
+.card-chain:hover,
+.card-asset:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Content vertical rhythm */
+.card-pool :deep(.p-card-content) p,
+.card-chain :deep(.p-card-content) p {
+  margin: 0.4rem 0;
+}
+
+/* Truncate long addresses in card subtitles */
+.card-pool :deep(.p-card-subtitle) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+/* Button row gap */
+.card-pool :deep(.p-card-footer) .flex {
+  gap: 0.5rem;
+}
+
+/* Footer icon bar spacing */
+.card-pool :deep(.p-card-footer) > .flex:last-child {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+}
+
+.filter-label {
+  margin-bottom: 0.4rem;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 640px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .filter-bar { flex-direction: column; gap: 1rem; }
 }
 
 </style>
