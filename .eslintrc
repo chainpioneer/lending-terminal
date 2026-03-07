@@ -1,0 +1,90 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "jsx": true,
+    "sourceType": "module",
+    "useJSXTextNode": true
+  },
+  "extends": [
+    "eslint-config-airbnb-base",
+    "eslint-config-airbnb-base/rules/strict",
+    "eslint-config-airbnb/rules/react",
+    "plugin:prettier/recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript"
+  ],
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "plugins": ["@typescript-eslint", "class-property", "simple-import-sort"],
+  "rules": {
+    "max-len": "off",
+    "semi": ["error", "never"],
+    "comma-dangle": 0,
+    "import/prefer-default-export": "off",
+    "no-console": "off",
+    "camelcase": "off",
+    "dot-notation": "off",
+    "no-use-before-define": "off",
+    "arrow-parens": "off",
+    "import/no-extraneous-dependencies": "off",
+    "consistent-return": "off",
+    "jsx-a11y/accessible-emoji": "off",
+    "no-plusplus": "off",
+    "no-case-declarations": "off",
+    "no-continue": "off",
+    "new-cap": "off",
+    "import/no-named-as-default": "off",
+    "no-new": "off",
+    "indnet": "off",
+    "no-nested-ternary": "off",
+    "simple-import-sort/imports": "warn",
+    "no-underscore-dangle": "off",
+    "no-template-curly-in-string": "off",
+    "prefer-destructuring": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/member-delimiter-style": "off",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/camelcase": "off",
+    "no-restricted-syntax": ["error", "LabeledStatement", "WithStatement"],
+    "guard-for-in": "off",
+    "@typescript-eslint/explicit-member-accessibility": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "import/no-dynamic-require": "off",
+    "no-useless-constructor": "off",
+    "@typescript-eslint/no-use-before-define": "off",
+    "no-param-reassign": "off",
+    "no-await-in-loop": "off",
+    "import/extensions": [
+      "error",
+      "ignorePackages",
+      {
+        "js": "never",
+        "jsx": "never",
+        "ts": "never",
+        "tsx": "never"
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"]
+    }
+  ],
+  "settings": {
+    "import/resolver": {
+      "typescript": {},
+      "project": "./tsconfig.json",
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"],
+        "moduleDirectory": ["node_modules", "src/"]
+      }
+    }
+  },
+  "globals":{
+    "BigInt":true
+  }
+}

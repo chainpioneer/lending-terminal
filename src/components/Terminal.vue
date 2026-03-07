@@ -150,6 +150,7 @@ const chainIdByChain: { [ch in Chains]: string } = {
   [Chains.BASE]: '0x2105',
   [Chains.SONIC]: '0x92',
   [Chains.AVAX]: '0xa86a',
+  [Chains.WLD]: '0x1e0',
 }
 
 const ethereum = () => (window as any).ethereum
@@ -170,6 +171,8 @@ function chainImgSrc(ch: number | string) {
       return 'https://img.cryptorank.io/coins/sonic1722608075138.png'
     case Chains.AVAX:
       return 'https://static.vecteezy.com/system/resources/previews/011/307/278/non_2x/avalanche-avax-badge-crypto-isolated-on-white-background-blockchain-technology-3d-rendering-free-png.png'
+    case Chains.WLD:
+      return 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMnTSr79HmlkL1WANLFB9i-dbM8Y-PpPxnEQ&s'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -181,6 +184,8 @@ function assetImgSrc(asset: number | string) {
       return chainImgSrc(Chains.FTM)
     case ASSETS.AVAX:
       return chainImgSrc(Chains.AVAX)
+    case ASSETS.WLD:
+      return chainImgSrc(Chains.WLD)
     case 'fBOMB':
       return 'https://whattofarm.io/assets/dex/tokens/200/fbomb-bomb-logo.webp'
     case ASSETS.OP:
@@ -214,6 +219,8 @@ function platformImgSrc(platform: string) {
       return assetImgSrc(ASSETS.IBEX)
     case 'Tarot':
       return 'https://www.tarot.to/favicon.ico'
+    case 'MORPHO':
+      return 'https://s2.coinmarketcap.com/static/img/coins/200x200/34104.png'
     case 'AAVE':
       return 'https://cdn.freelogovectors.net/wp-content/uploads/2021/12/aavelogo-freelogovectors.net_.png'
     default:
@@ -244,6 +251,9 @@ function linkToPool(pool: { vault: string, platform: string, chain: Chains, stab
         case Chains.AVAX:
           chainId = '43114';
           break
+        case Chains.WLD:
+          chainId = '480';
+          break
         default:
           throw new Error(`unknown chain ${pool.chain}`)
       }
@@ -272,6 +282,13 @@ function linkToPool(pool: { vault: string, platform: string, chain: Chains, stab
         default: throw new Error(`unknown chain ${pool.chain}`)
       }
       return `https://app.aave.com/?marketName=proto_${chainName}_v3`
+    case 'MORPHO':
+      let cName
+      switch (pool.chain) {
+        case Chains.WLD: cName = 'world-chain'; break
+        default: throw new Error(`unknown chain ${pool.chain}`)
+      }
+      return `https://lite.morpho.org/${cName}/earn`
     default:
       throw new Error(`Unknown platform ${pool.platform}`)
   }
@@ -287,6 +304,7 @@ function linkToExplorer(pool: Pool) {
     case Chains.BLAST: chainPrefix = 'blastscan.io'; break
     case Chains.SONIC: chainPrefix = 'sonicscan.org'; break
     case Chains.AVAX: chainPrefix = 'snowscan.xyz'; break
+    case Chains.WLD: chainPrefix = 'worldscan.org'; break
     default: throw new Error(`unknown chain ${pool.chain}`)
   }
   return `https://${chainPrefix}/address/${pool.borrowable}`
@@ -509,6 +527,7 @@ function toUSDCurrency(n: number | string): string {
               <p class="m-0">
                 Daily earnings: {{ assetProps.oldDailyEarnings }} ({{toUSDCurrency(assetProps.oldDailyEarningsUsd)}}) -> {{ assetProps.maxDailyEarnings }} ({{toUSDCurrency(assetProps.maxDailyEarningsUsd)}})
                 <span style="color: green" v-if="data.compoundBorrowingRewardByBorrowedAsset[asset]"> +{{data.compoundBorrowingRewardByBorrowedAsset[asset].amount}} {{ASSETS.COMP}} ({{toUSDCurrency(data.compoundBorrowingRewardByBorrowedAsset[asset].usd)}})</span>
+                <span style="color: green" v-if="data.morphoRewardsByAsset[asset]"> +{{data.morphoRewardsByAsset[asset].amount}} {{ASSETS.WLD}} ({{toUSDCurrency(data.morphoRewardsByAsset[asset].usd)}})</span>
               </p>
               <p class="m-0">
                 APR: {{assetProps.currentAPR}}% -> {{assetProps.maxAPR}}%
@@ -670,7 +689,7 @@ function toUSDCurrency(n: number | string): string {
       <div class="asset-summarized-info">
         <template v-if="data" v-for="pool in data.goodPools">
           <Card class="card-pool" v-if="selectedChains[pool.chain] && selectedAssets[pool.asset] && (!onlyMyDeposits || pool.suppliedBN > 0)">
-            <template #title>{{pool.platform === 'AAVE' ? '' : 'Collateral:'}} {{pool.asset}}{{pool.oppositeSymbol ? '/' : ''}}{{pool.oppositeSymbol}} ({{pool.vaultAPR === '' ? 'AAVE' : pool.vaultAPR + '%'}})</template>
+            <template #title>{{pool.platform === 'AAVE' ? '' : 'Collateral:'}} {{pool.asset}}{{pool.oppositeSymbol ? '/' : ''}}{{pool.oppositeSymbol}} ({{pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%'}})</template>
             <template #subtitle>
               <a target="_blank" rel="noopener" :href="linkToExplorer(pool)" style="font-family: monospace">{{pool.borrowable}}</a>
             </template>
