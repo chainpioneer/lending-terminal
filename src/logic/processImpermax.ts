@@ -205,6 +205,8 @@ export function processBorrowables(
       vault: vaultOrLPByBor[b],
       stable: stableByBor[b],
       chain,
+      underlying,
+      exchangeRate: newExchangeRate,
     })
 
     populateCumulativeByAsset(

@@ -224,6 +224,8 @@ export function buildAavePools(
       vault: '',
       stable: false,
       chain,
+      underlying: '',
+      exchangeRate: 0n,
     })
   })
 }

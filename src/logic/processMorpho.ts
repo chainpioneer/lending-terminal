@@ -190,6 +190,8 @@ export async function processMorphoRewardsAndPools(
       vault: '',
       stable: false,
       chain,
+      underlying: '',
+      exchangeRate: 0n,
     })
   })
 

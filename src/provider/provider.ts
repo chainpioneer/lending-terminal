@@ -1,5 +1,5 @@
 import { Call, Provider } from 'ethcall'
-import { JsonRpcProvider } from 'ethers'
+import { JsonRpcProvider, Network } from 'ethers'
 import Web3 from 'web3'
 
 import { CHAIN_CONF, Chains } from '../constants/constants'
@@ -15,7 +15,7 @@ export const ETH_CALL_PROVIDERS: { [key: string]: Provider[] } = {}
 Object.entries(CHAIN_CONF).forEach(([chain, { rpcUrls, chainId }]) => {
   ETH_CALL_PROVIDERS[chain] = []
   rpcUrls.forEach((x) => {
-    const ethersProvider = new JsonRpcProvider(x)
+    const ethersProvider = new JsonRpcProvider(x, Network.from(chainId), { staticNetwork: true })
     ETH_CALL_PROVIDERS[chain].push(
       new Provider(chainId, ethersProvider, {
         multicall: { address: '0xcA11bde05977b3631167028862bE2a173976CA11', block: 0 },

@@ -7,10 +7,13 @@ import Card from 'primevue/card';
 import Image from 'primevue/image';
 import ProgressSpinner from 'primevue/progressspinner';
 import Panel from 'primevue/panel';
-import {ASSETS, Chains} from "../constants/constants";
+import {ASSETS, Chains, getDiv} from "../constants/constants";
 import ToggleSwitch from 'primevue/toggleswitch';
 import {Pool} from "../types";
+import {getRouterAddress, encodeMint, encodeMintETH, encodeRedeem, encodeRedeemETH, ensureApproval, sendTx, waitForReceipt} from "../logic/router";
+import ONE from "../utils/ONE";
 import {toUSDCurrency, extractAddresses, invalidAddresses} from "../utils/formatting";
+import {getAddress} from "ethers";
 import {chainIdByChain, chainImgSrc, assetImgSrc, platformImgSrc, linkToPool, linkToExplorer} from "../utils/chainMappings";
 import StatWithBreakdown from './StatWithBreakdown.vue';
 
@@ -34,7 +37,15 @@ const selectedAssets = ref<{ [asset: string]: boolean }>({});
 
 const onlyMyDeposits = ref(false);
 
+const poolAction = ref<{ [borrowable: string]: 'deposit' | 'withdraw' | null }>({})
+const poolAmountInput = ref<{ [borrowable: string]: string }>({})
+const poolTxStatus = ref<{ [borrowable: string]: string }>({})
+
 const hasEthereum = computed(() => !!(window as any).ethereum)
+
+function isImpermaxOrTarot(pool: Pool): boolean {
+  return (pool.platform === 'Tarot' || pool.platform === 'Impermax') && !!getRouterAddress(pool.chain)
+}
 
 const setCollapsed = (id: string, state: boolean) => {
   (collapsed as any).value[id] = state;
@@ -100,13 +111,13 @@ async function handleSyncOrConnect(pool: Pool) {
   if (!subscribed.value) {
     ethereum.on("accountsChanged", async () => {
       const [addr] = await ethereum.enable()
-      wallet.value = addr
+      wallet.value = getAddress(addr)
       walletChain.value = ethereum.chainId
       console.log(`account switched to ${addr}`)
     })
     ethereum.on("networkChanged", async () => {
       const [addr] = await ethereum.enable()
-      wallet.value = addr
+      wallet.value = getAddress(addr)
       walletChain.value = ethereum.chainId
       console.log(`chain switched to ${walletChain.value}`)
     })
@@ -115,7 +126,7 @@ async function handleSyncOrConnect(pool: Pool) {
   }
   const [addr] = await ethereum.enable()
   if (wallet.value !== addr) {
-    wallet.value = addr
+    wallet.value = getAddress(addr)
     console.log("wallet connected", wallet.value)
     walletChain.value = ethereum.chainId
   } else if (chainIdByChain[pool.chain as Chains] !== walletChain.value) {
@@ -143,6 +154,115 @@ function syncButtonLabel(pool: Pool): string {
   if (!wallet.value) return "connect wallet"
   if (walletChain.value === chainIdByChain[pool.chain as Chains]) return "sync"
   return `switch n to ${pool.chain}`
+}
+
+function togglePoolAction(pool: Pool, action: 'deposit' | 'withdraw') {
+  poolAction.value[pool.borrowable] = poolAction.value[pool.borrowable] === action ? null : action
+  poolAmountInput.value[pool.borrowable] = ''
+  poolTxStatus.value[pool.borrowable] = ''
+}
+
+function getMaxAmount(pool: Pool, action: 'deposit' | 'withdraw'): number {
+  if (!data.value || !wallet.value) return 0
+  if (action === 'deposit') {
+    const byAsset = data.value.idleBalancesByChainByAssetByUser?.[pool.chain]?.[pool.asset]?.[wallet.value]
+    return byAsset?.amount ?? 0
+  }
+  const byBorrowable = data.value.suppliedByChainByBorrowableByUser?.[pool.chain]?.[pool.borrowable]?.[wallet.value]
+  return byBorrowable?.amount ?? 0
+}
+
+function fillMax(pool: Pool) {
+  const action = poolAction.value[pool.borrowable]
+  if (!action) return
+  poolAmountInput.value[pool.borrowable] = String(getMaxAmount(pool, action))
+}
+
+function isAmountValid(pool: Pool): boolean {
+  const action = poolAction.value[pool.borrowable]
+  if (!action) return false
+  const raw = Number(poolAmountInput.value[pool.borrowable])
+  if (!raw || raw <= 0) return false
+  return raw <= getMaxAmount(pool, action)
+}
+
+async function ensureCorrectChain(pool: Pool) {
+  const ethereum = (window as any).ethereum
+  if (!ethereum) throw new Error('No wallet detected')
+  if (!wallet.value) {
+    const [addr] = await ethereum.enable()
+    wallet.value = getAddress(addr)
+    walletChain.value = ethereum.chainId
+  }
+  if (chainIdByChain[pool.chain as Chains] !== walletChain.value) {
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chainIdByChain[pool.chain as Chains] }],
+    })
+    walletChain.value = ethereum.chainId
+  }
+}
+
+async function handleDeposit(pool: Pool) {
+  const b = pool.borrowable
+  const isETH = pool.asset === ASSETS.ETH
+  try {
+    await ensureCorrectChain(pool)
+    const div = getDiv(pool.asset)
+    const amount = BigInt(Math.floor(Number(poolAmountInput.value[b]) * div))
+    if (amount <= 0n) return
+    const routerAddress = getRouterAddress(pool.chain)!
+    const deadline = Math.floor(Date.now() / 1000) + 1200
+
+    if (isETH) {
+      poolTxStatus.value[b] = 'Depositing...'
+      const calldata = encodeMintETH(pool.borrowable, wallet.value, deadline)
+      const txHash = await sendTx({ from: wallet.value, to: routerAddress, data: calldata, value: '0x' + amount.toString(16) })
+      await waitForReceipt(txHash)
+    } else {
+      poolTxStatus.value[b] = 'Approving...'
+      await ensureApproval(pool.underlying, wallet.value, routerAddress, amount)
+
+      poolTxStatus.value[b] = 'Depositing...'
+      const calldata = encodeMint(pool.borrowable, amount, wallet.value, deadline)
+      const txHash = await sendTx({ from: wallet.value, to: routerAddress, data: calldata })
+      await waitForReceipt(txHash)
+    }
+
+    poolTxStatus.value[b] = 'Success'
+    poolAmountInput.value[b] = ''
+  } catch (e: any) {
+    poolTxStatus.value[b] = e?.message || 'Error'
+  }
+}
+
+async function handleRedeem(pool: Pool) {
+  const b = pool.borrowable
+  const isETH = pool.asset === ASSETS.ETH
+  try {
+    await ensureCorrectChain(pool)
+    const div = getDiv(pool.asset)
+    const amount = BigInt(Math.floor(Number(poolAmountInput.value[b]) * div))
+    if (amount <= 0n) return
+    const poolTokens = (amount * ONE) / pool.exchangeRate
+    const routerAddress = getRouterAddress(pool.chain)!
+    const deadline = Math.floor(Date.now() / 1000) + 1200
+
+    poolTxStatus.value[b] = 'Approving...'
+    await ensureApproval(pool.borrowable, wallet.value, routerAddress, poolTokens)
+
+    poolTxStatus.value[b] = 'Withdrawing...'
+    const calldata = isETH
+      ? encodeRedeemETH(pool.borrowable, poolTokens, wallet.value, deadline)
+      : encodeRedeem(pool.borrowable, poolTokens, wallet.value, deadline)
+    const txHash = await sendTx({ from: wallet.value, to: routerAddress, data: calldata })
+    await waitForReceipt(txHash)
+
+    poolTxStatus.value[b] = 'Success'
+    poolAmountInput.value[b] = ''
+  } catch (e: any) {
+    poolTxStatus.value[b] = e?.message || 'Error'
+  }
 }
 
 </script>
@@ -475,6 +595,22 @@ function syncButtonLabel(pool: Pool): string {
                     <Button as="a" label="Go to pool" severity="secondary" outlined class="w-full" :href='linkToPool(pool)' target="_blank" rel="noopener" />
                     <Button v-if='hasEthereum && pool.earningsNewUsd > pool.earningsOldUsd' @click='handleSyncOrConnect(pool)' :label='syncButtonLabel(pool)' class="w-full" />
                 </div>
+                <template v-if="isImpermaxOrTarot(pool) && hasEthereum">
+                  <div class="flex gap-2" style="margin-top: 0.5rem">
+                    <Button size="small" :severity="poolAction[pool.borrowable] === 'deposit' ? 'primary' : 'secondary'" outlined label="Deposit" @click="togglePoolAction(pool, 'deposit')" />
+                    <Button size="small" :severity="poolAction[pool.borrowable] === 'withdraw' ? 'primary' : 'secondary'" outlined label="Withdraw" @click="togglePoolAction(pool, 'withdraw')" />
+                  </div>
+                  <template v-if="poolAction[pool.borrowable]">
+                    <div class="pool-action-form">
+                      <InputText v-model="poolAmountInput[pool.borrowable]" type="number" :placeholder="pool.asset" size="small" />
+                      <Button size="small" severity="secondary" label="Max" @click="fillMax(pool)" />
+                    </div>
+                    <Button v-if="!wallet" size="small" class="w-full" style="margin-top: 0.5rem" label="Connect wallet" @click="ensureCorrectChain(pool)" />
+                    <Button v-else-if="walletChain !== chainIdByChain[pool.chain as Chains]" size="small" class="w-full" style="margin-top: 0.5rem" :label="'Switch to ' + pool.chain" @click="ensureCorrectChain(pool)" />
+                    <Button v-else size="small" class="w-full" style="margin-top: 0.5rem" :label="poolAction[pool.borrowable] === 'deposit' ? 'Confirm deposit' : 'Confirm withdraw'" :disabled="!isAmountValid(pool)" @click="poolAction[pool.borrowable] === 'deposit' ? handleDeposit(pool) : handleRedeem(pool)" />
+                    <div v-if="poolTxStatus[pool.borrowable]" class="pool-tx-status">{{ poolTxStatus[pool.borrowable] }}</div>
+                  </template>
+                </template>
                 <div class="flex items-center justify-between">
                   <div>
                     <Image :src='chainImgSrc(pool.chain)' :alt='pool.chain' width="25px"/>
@@ -563,6 +699,20 @@ function syncButtonLabel(pool: Pool): string {
   opacity: 0.7;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.pool-action-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.pool-action-form input {
+  flex: 1;
+}
+.pool-tx-status {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
 @media (max-width: 640px) {

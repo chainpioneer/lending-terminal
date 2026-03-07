@@ -56,4 +56,6 @@ export type Pool = {
   oppositeSymbol: string
   vault: string
   stable: boolean
+  underlying: string
+  exchangeRate: bigint
 }
