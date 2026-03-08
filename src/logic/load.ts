@@ -31,7 +31,7 @@ import { buildCompoundPositions, parseCompoundCall2Data, processCompoundCollater
 import { processBorrowables, processCollateralPositions } from './processImpermax'
 import { parseMorphoCall1Data, processMorphoRewardsAndPools } from './processMorpho'
 
-export default async function load(users: string[]) {
+export default async function load(users: string[], onChainDone?: (chain: Chains) => void) {
   await waitForPrices()
   const ctx = createLoadContext()
 
@@ -532,7 +532,7 @@ export default async function load(users: string[]) {
     buildAavePools(ctx, chain, conf, assetAddressesOnAAVE)
   }
 
-  await Promise.all(chains.map(callChain))
+  await Promise.all(chains.map((chain) => callChain(chain).then(() => onChainDone?.(chain))))
 
   // === Post-processing: aggregate stats by chain ===
   for (const c in Chains) {

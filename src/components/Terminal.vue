@@ -7,7 +7,7 @@ import Card from 'primevue/card'
 import Image from 'primevue/image'
 import ProgressSpinner from 'primevue/progressspinner'
 import Panel from 'primevue/panel'
-import { ASSETS, Chains, getDiv } from '../constants/constants'
+import { ASSETS, CHAIN_CONF, Chains, getDiv } from '../constants/constants'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { Pool } from '../types'
 import {
@@ -36,6 +36,7 @@ import StatWithBreakdown from './StatWithBreakdown.vue'
 defineProps<{ msg: string }>()
 
 const fetchingData = ref(false)
+const pendingChains = ref<string[]>([])
 const addresses = ref(localStorage.getItem('userStr') || '')
 const data: any = ref<Awaited<ReturnType<typeof load>>>()
 const wallet = ref('')
@@ -115,8 +116,12 @@ const toggleAssetSelected = (asset: string) => toggleFilterSelection(asset, sele
 
 async function fetchData() {
   fetchingData.value = true
+  const allChains = Object.keys(CHAIN_CONF)
+  pendingChains.value = [...allChains]
   const userAddresses = addresses.value
-  data.value = await load(extractAddresses(userAddresses))
+  data.value = await load(extractAddresses(userAddresses), (chain) => {
+    pendingChains.value = pendingChains.value.filter((c) => c !== chain)
+  })
   localStorage.setItem('userStr', userAddresses)
   selectedChains.value = {}
   selectedAssets.value = {}
@@ -322,6 +327,7 @@ async function handleRedeem(pool: Pool) {
             animationDuration=".5s"
             aria-label="Custom ProgressSpinner"
           />
+          <p class="m-0">Fetching: {{ pendingChains.join(', ') || 'finalizing...' }}</p>
         </div>
         <template v-else>
           <Button

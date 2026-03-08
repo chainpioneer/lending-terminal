@@ -71,7 +71,7 @@ export function platformImgSrc(platform: string) {
     case 'Tarot':
       return 'https://www.tarot.to/favicon.ico'
     case 'MORPHO':
-      return 'https://assets.coingecko.com/coins/images/38636/standard/morpho.jpeg'
+      return 'https://cdn.morpho.org/assets/logos/morpho.svg'
     case 'AAVE':
       return 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png'
     default:
