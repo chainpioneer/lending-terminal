@@ -11,11 +11,13 @@ const tokenIds = Object.values(assetConf).map(({ tokenId }) => {
 })
 
 async function updatePrice() {
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${tokenIds.join(',')}&vs_currencies=usd`
+  const coins = tokenIds.map((id) => `coingecko:${id}`).join(',')
+  const url = `https://coins.llama.fi/prices/current/${coins}`
   const { data } = await axios.get(url)
-  for (const tokenId in data) {
+  for (const [key, val] of Object.entries(data.coins) as [string, { price: number }][]) {
+    const tokenId = key.replace('coingecko:', '')
     const asset = assetByTokenId[tokenId]
-    assetPrices[asset] = data[tokenId].usd
+    assetPrices[asset] = val.price
   }
 }
 

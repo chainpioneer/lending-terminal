@@ -130,6 +130,7 @@ export default async function load(users: string[]) {
         calls1.push(pool.totalAssets())
         calls1.push(pool.totalSupply())
         calls1.push(pool.fee())
+        calls1.push(pool.withdrawQueueLength())
         users.forEach((addr) => {
           calls1.push(pool.balanceOf(addr))
         })
@@ -763,6 +764,12 @@ export default async function load(users: string[]) {
     suppliedByChainByBorrowableByUser: ctx.suppliedByChainByBorrowableByUser,
     compoundBorrowingRewardByBorrowedAsset: ctx.compoundBorrowingRewardByBorrowedAsset,
     morphoRewardsByAsset: ctx.morphoRewardsByAsset,
+    morphoRewards: ctx.morphoRewardTotalUsd > 0 ? {
+      token: ctx.morphoRewardToken,
+      amount: Number(ctx.morphoRewardTotalAmount.toFixed(4)),
+      usd: Number(ctx.morphoRewardTotalUsd.toFixed(2)),
+      apr: Number(((ctx.morphoRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
+    } : null,
     totalDeposited: totalDeposited.toFixed(2),
     oldTotalEarnings: oldTotalEarnings.toFixed(2),
     newTotalEarnings: newTotalEarnings.toFixed(2),

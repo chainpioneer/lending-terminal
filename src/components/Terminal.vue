@@ -364,6 +364,10 @@ async function handleRedeem(pool: Pool) {
             Daily earnings: {{ toUSDCurrency(data.oldTotalEarnings) }} -> {{ toUSDCurrency(data.maxTotalEarnings) }}
           </p>
           <p class="m-0">APR: {{ data.currentAPR }}% -> {{ data.maxAPR }}%</p>
+          <p class="m-0 text-positive" v-if="data.morphoRewards">
+            Morpho rewards: {{ data.morphoRewards.amount }} {{ data.morphoRewards.token }}/day
+            ({{ toUSDCurrency(data.morphoRewards.usd) }}) | APR: {{ data.morphoRewards.apr }}%
+          </p>
           <StatWithBreakdown :showBreakdown="data.users.length > 1">
             Idle: {{ toUSDCurrency(data.usd) }}
             <template #breakdown>

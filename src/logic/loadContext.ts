@@ -37,6 +37,7 @@ export type MorphoPoolEntry = {
   fee: bigint
   apr: number
   aggregatedDeposit: Deposit
+  withdrawQueueLength: number
 }
 
 export type AavePosition = {
@@ -62,6 +63,9 @@ export type LoadContext = {
   compoundBorrowingReward: Deposit
   compoundBorrowingRewardByBorrowedAsset: { [asset: string]: Deposit }
   morphoRewardsByAsset: { [asset: string]: Deposit }
+  morphoRewardToken: ASSETS | ''
+  morphoRewardTotalAmount: number
+  morphoRewardTotalUsd: number
   aaveAEarningsByAsset: { [asset: string]: Deposit }
   compoundSpendingsByAsset: { [asset: string]: Deposit }
   aaveVDSpendingsByAsset: { [asset: string]: Deposit }
@@ -107,6 +111,9 @@ export function createLoadContext(): LoadContext {
     compoundBorrowingReward: { amount: 0, bn: 0n, usd: 0 },
     compoundBorrowingRewardByBorrowedAsset: {},
     morphoRewardsByAsset: {},
+    morphoRewardToken: '',
+    morphoRewardTotalAmount: 0,
+    morphoRewardTotalUsd: 0,
     aaveAEarningsByAsset: {},
     compoundSpendingsByAsset: {},
     aaveVDSpendingsByAsset: {},
