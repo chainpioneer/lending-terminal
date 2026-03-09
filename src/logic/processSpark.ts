@@ -48,8 +48,7 @@ export function parseSparkCall1Data(
     users.forEach((u) => {
       const balance = call1Data[callIndex++]
       const div = getDiv(asset)
-      const assetBalance: bigint =
-        totalSupply > 0n ? (BigInt(balance) * totalAssets) / totalSupply : 0n
+      const assetBalance: bigint = totalSupply > 0n ? (BigInt(balance) * totalAssets) / totalSupply : 0n
       const deposit = toDeposit(assetBalance, div, asset)
       ctx.sparkPoolInfo[chain][pool].supplied[u] = deposit
 
@@ -91,8 +90,7 @@ export async function processSparkPools(
     const timeDelta = timestamp ? blockTimestamp - timestamp : (currentBlockNumber - pastBlockNumber) * 2
     const currExchangeRate =
       poolInfo.totalSupply > 0n ? (poolInfo.totalAssets * ONE * ONE) / poolInfo.totalSupply : ONE * ONE
-    const oldExchangeRate =
-      oldTotalSupply > 0n ? (oldTotalAssets * ONE * ONE) / oldTotalSupply : ONE * ONE
+    const oldExchangeRate = oldTotalSupply > 0n ? (oldTotalAssets * ONE * ONE) / oldTotalSupply : ONE * ONE
 
     poolInfo.apr =
       oldExchangeRate > 0n

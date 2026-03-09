@@ -801,21 +801,27 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     morphoRewardsByAsset: ctx.morphoRewardsByAsset,
     morphoRewardsByChainByAsset: ctx.morphoRewardsByChainByAsset,
     morphoRewardsByChain: ctx.morphoRewardsByChain,
-    morphoRewards: ctx.morphoRewardTotalUsd > 0 ? {
-      token: ctx.morphoRewardToken,
-      amount: Number(ctx.morphoRewardTotalAmount.toFixed(4)),
-      usd: Number(ctx.morphoRewardTotalUsd.toFixed(2)),
-      apr: Number(((ctx.morphoRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
-    } : null,
+    morphoRewards:
+      ctx.morphoRewardTotalUsd > 0
+        ? {
+            token: ctx.morphoRewardToken,
+            amount: Number(ctx.morphoRewardTotalAmount.toFixed(4)),
+            usd: Number(ctx.morphoRewardTotalUsd.toFixed(2)),
+            apr: Number(((ctx.morphoRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
+          }
+        : null,
     sparkRewardsByAsset: ctx.sparkRewardsByAsset,
     sparkRewardsByChainByAsset: ctx.sparkRewardsByChainByAsset,
     sparkRewardsByChain: ctx.sparkRewardsByChain,
-    sparkRewards: ctx.sparkRewardTotalUsd > 0 ? {
-      token: ctx.sparkRewardToken,
-      amount: Number(ctx.sparkRewardTotalAmount.toFixed(4)),
-      usd: Number(ctx.sparkRewardTotalUsd.toFixed(2)),
-      apr: Number(((ctx.sparkRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
-    } : null,
+    sparkRewards:
+      ctx.sparkRewardTotalUsd > 0
+        ? {
+            token: ctx.sparkRewardToken,
+            amount: Number(ctx.sparkRewardTotalAmount.toFixed(4)),
+            usd: Number(ctx.sparkRewardTotalUsd.toFixed(2)),
+            apr: Number(((ctx.sparkRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
+          }
+        : null,
     totalDeposited: totalDeposited.toFixed(2),
     oldTotalEarnings: oldTotalEarnings.toFixed(2),
     newTotalEarnings: newTotalEarnings.toFixed(2),

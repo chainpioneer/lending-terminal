@@ -372,12 +372,14 @@ async function handleRedeem(pool: Pool) {
           </p>
           <p class="m-0">APR: {{ data.currentAPR }}% -> {{ data.maxAPR }}%</p>
           <p class="m-0 text-positive" v-if="data.morphoRewards">
-            Morpho rewards: {{ data.morphoRewards.amount }} {{ data.morphoRewards.token }}/day
-            ({{ toUSDCurrency(data.morphoRewards.usd) }}) | APR: {{ data.morphoRewards.apr }}%
+            Morpho rewards: {{ data.morphoRewards.amount }} {{ data.morphoRewards.token }}/day ({{
+              toUSDCurrency(data.morphoRewards.usd)
+            }}) | APR: {{ data.morphoRewards.apr }}%
           </p>
           <p class="m-0 text-positive" v-if="data.sparkRewards">
-            Spark rewards: {{ data.sparkRewards.amount }} {{ data.sparkRewards.token }}/day
-            ({{ toUSDCurrency(data.sparkRewards.usd) }}) | APR: {{ data.sparkRewards.apr }}%
+            Spark rewards: {{ data.sparkRewards.amount }} {{ data.sparkRewards.token }}/day ({{
+              toUSDCurrency(data.sparkRewards.usd)
+            }}) | APR: {{ data.sparkRewards.apr }}%
           </p>
           <StatWithBreakdown :showBreakdown="data.users.length > 1">
             Idle: {{ toUSDCurrency(data.usd) }}
@@ -641,12 +643,14 @@ async function handleRedeem(pool: Pool) {
               APR: {{ data.chainAggregatedStats[chain].currentAPR }}% -> {{ data.chainAggregatedStats[chain].maxAPR }}%
             </p>
             <p class="m-0 text-positive" v-if="data.morphoRewardsByChain[chain]">
-              Morpho rewards: +{{ data.morphoRewardsByChain[chain].amount }} {{ data.morphoRewards?.token }}/day
-              ({{ toUSDCurrency(data.morphoRewardsByChain[chain].usd) }})
+              Morpho rewards: +{{ data.morphoRewardsByChain[chain].amount }} {{ data.morphoRewards?.token }}/day ({{
+                toUSDCurrency(data.morphoRewardsByChain[chain].usd)
+              }})
             </p>
             <p class="m-0 text-positive" v-if="data.sparkRewardsByChain[chain]">
-              Spark rewards: +{{ data.sparkRewardsByChain[chain].amount }} {{ data.sparkRewards?.token }}/day
-              ({{ toUSDCurrency(data.sparkRewardsByChain[chain].usd) }})
+              Spark rewards: +{{ data.sparkRewardsByChain[chain].amount }} {{ data.sparkRewards?.token }}/day ({{
+                toUSDCurrency(data.sparkRewardsByChain[chain].usd)
+              }})
             </p>
             <StatWithBreakdown :showBreakdown="data.users.length > 1">
               Idle: {{ toUSDCurrency(data.chainAggregatedStats[chain].usd) }}
@@ -695,18 +699,12 @@ async function handleRedeem(pool: Pool) {
                       Daily earnings: {{ assetProps.oldDailyEarnings }} ({{
                         toUSDCurrency(assetProps.oldDailyEarningsUsd)
                       }}) -> {{ assetProps.maxDailyEarnings }} ({{ toUSDCurrency(assetProps.maxDailyEarningsUsd) }})
-                      <span
-                        class="text-positive"
-                        v-if="data.morphoRewardsByChainByAsset[chain]?.[asset]"
-                      >
+                      <span class="text-positive" v-if="data.morphoRewardsByChainByAsset[chain]?.[asset]">
                         +{{ data.morphoRewardsByChainByAsset[chain][asset].amount }} {{ data.morphoRewards?.token }} ({{
                           toUSDCurrency(data.morphoRewardsByChainByAsset[chain][asset].usd)
                         }})</span
                       >
-                      <span
-                        class="text-positive"
-                        v-if="data.sparkRewardsByChainByAsset[chain]?.[asset]"
-                      >
+                      <span class="text-positive" v-if="data.sparkRewardsByChainByAsset[chain]?.[asset]">
                         +{{ data.sparkRewardsByChainByAsset[chain][asset].amount }} {{ data.sparkRewards?.token }} ({{
                           toUSDCurrency(data.sparkRewardsByChainByAsset[chain][asset].usd)
                         }})</span

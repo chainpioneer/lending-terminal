@@ -73,7 +73,7 @@ export function platformImgSrc(platform: string) {
     case 'MORPHO':
       return 'https://cdn.morpho.org/assets/logos/morpho.svg'
     case 'SPARK':
-      return 'https://app.spark.fi/spark-logo-dark.svg'
+      return 'https://icons.llamao.fi/icons/protocols/spark?w=48&h=48'
     case 'AAVE':
       return 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png'
     default:
