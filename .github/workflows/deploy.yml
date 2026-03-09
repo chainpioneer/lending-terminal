@@ -31,8 +31,6 @@ jobs:
       - run: yarn install --frozen-lockfile
 
       - run: yarn build
-        env:
-          NODE_ENV: dev
 
       - uses: actions/configure-pages@v5
 
