@@ -7,6 +7,7 @@ import borrowableAbi from '../../abi/borrowable.json' assert { type: 'json' }
 import collateralAbi from '../../abi/collateral.json' assert { type: 'json' }
 import compoundBorrowingAbi from '../../abi/CompoundBorrowing.json' assert { type: 'json' }
 import morphoPoolAbi from '../../abi/MorphoPool.json' assert { type: 'json' }
+import sparkVaultAbi from '../../abi/SparkVault.json' assert { type: 'json' }
 import stakingPoolAbi from '../../abi/stakingPool.json' assert { type: 'json' }
 import vaultAbi from '../../abi/vault.json' assert { type: 'json' }
 import {
@@ -30,6 +31,7 @@ import { buildAavePools, processAaveBalances } from './processAave'
 import { buildCompoundPositions, parseCompoundCall2Data, processCompoundCollateral } from './processCompound'
 import { processBorrowables, processCollateralPositions } from './processImpermax'
 import { parseMorphoCall1Data, processMorphoRewardsAndPools } from './processMorpho'
+import { parseSparkCall1Data, processSparkPools } from './processSpark'
 
 export default async function load(users: string[], onChainDone?: (chain: Chains) => void) {
   await waitForPrices()
@@ -52,6 +54,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     ctx.idleBalancesByChain[chain] = {}
     ctx.compoundBorrowingInfo[chain] = {}
     ctx.morphoPoolInfo[chain] = {}
+    ctx.sparkPoolInfo[chain] = {}
     ctx.idleBalancesByChainByAssetByUser[chain] = {}
     ctx.aaveABalancesByChainByAsset[chain] = {}
     ctx.aaveABalancesByChainByAssetAddress[chain] = {}
@@ -131,6 +134,17 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
         calls1.push(pool.totalSupply())
         calls1.push(pool.fee())
         calls1.push(pool.withdrawQueueLength())
+        users.forEach((addr) => {
+          calls1.push(pool.balanceOf(addr))
+        })
+      })
+    }
+    if (conf.spark) {
+      conf.spark.pools.forEach((address) => {
+        const pool = new Contract(address, sparkVaultAbi)
+        calls1.push(pool.asset())
+        calls1.push(pool.totalAssets())
+        calls1.push(pool.totalSupply())
         users.forEach((addr) => {
           calls1.push(pool.balanceOf(addr))
         })
@@ -303,8 +317,14 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
     // === Parse morpho call1 data ===
     const callIndex = borrowableCallCount + conf.compoundBorrowings.length * 5 + (conf.aaveLendingPool ? 1 : 0)
+    let nextCallIndex = callIndex
     if (conf.morpho) {
-      parseMorphoCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, callIndex)
+      nextCallIndex = parseMorphoCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, callIndex)
+    }
+
+    // === Parse spark call1 data ===
+    if (conf.spark) {
+      parseSparkCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, nextCallIndex)
     }
 
     console.log('calling call3', chain)
@@ -369,6 +389,21 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     // === Process morpho rewards and build morpho pools ===
     if (conf.morpho) {
       cursor = await processMorphoRewardsAndPools(
+        ctx,
+        chain,
+        conf,
+        call3Data,
+        cursor,
+        blockTimestamp,
+        timestamp,
+        currentBlockNumber,
+        pastBlockNumber,
+      )
+    }
+
+    // === Process spark pools ===
+    if (conf.spark) {
+      cursor = await processSparkPools(
         ctx,
         chain,
         conf,
@@ -764,11 +799,22 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     suppliedByChainByBorrowableByUser: ctx.suppliedByChainByBorrowableByUser,
     compoundBorrowingRewardByBorrowedAsset: ctx.compoundBorrowingRewardByBorrowedAsset,
     morphoRewardsByAsset: ctx.morphoRewardsByAsset,
+    morphoRewardsByChainByAsset: ctx.morphoRewardsByChainByAsset,
+    morphoRewardsByChain: ctx.morphoRewardsByChain,
     morphoRewards: ctx.morphoRewardTotalUsd > 0 ? {
       token: ctx.morphoRewardToken,
       amount: Number(ctx.morphoRewardTotalAmount.toFixed(4)),
       usd: Number(ctx.morphoRewardTotalUsd.toFixed(2)),
       apr: Number(((ctx.morphoRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
+    } : null,
+    sparkRewardsByAsset: ctx.sparkRewardsByAsset,
+    sparkRewardsByChainByAsset: ctx.sparkRewardsByChainByAsset,
+    sparkRewardsByChain: ctx.sparkRewardsByChain,
+    sparkRewards: ctx.sparkRewardTotalUsd > 0 ? {
+      token: ctx.sparkRewardToken,
+      amount: Number(ctx.sparkRewardTotalAmount.toFixed(4)),
+      usd: Number(ctx.sparkRewardTotalUsd.toFixed(2)),
+      apr: Number(((ctx.sparkRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
     } : null,
     totalDeposited: totalDeposited.toFixed(2),
     oldTotalEarnings: oldTotalEarnings.toFixed(2),

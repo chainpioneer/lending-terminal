@@ -82,6 +82,10 @@ export const CHAIN_CONF: {
       pools: string[]
       merklCampaignsUrl: string
     }
+    spark?: {
+      pools: string[]
+      rewardsCampaignsUrl: string
+    }
   }
 } = {
   [Chains.BASE]: {
@@ -204,6 +208,10 @@ export const CHAIN_CONF: {
     staking: {},
     aaveLendingPool: '',
     compoundBorrowings: [],
+    spark: {
+      pools: ['0x28B3a8fb53B741A8Fd78c0fb9A6B2393d896a43d'],
+      rewardsCampaignsUrl: 'https://spark2-api.blockanalitica.com/api/v1/rewards/campaigns/',
+    },
     rpcUrls: [
       'https://avalanche.drpc.org',
       'https://0xrpc.io/avax',

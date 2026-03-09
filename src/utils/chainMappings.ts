@@ -72,6 +72,8 @@ export function platformImgSrc(platform: string) {
       return 'https://www.tarot.to/favicon.ico'
     case 'MORPHO':
       return 'https://cdn.morpho.org/assets/logos/morpho.svg'
+    case 'SPARK':
+      return 'https://app.spark.fi/spark-logo-dark.svg'
     case 'AAVE':
       return 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png'
     default:
@@ -151,6 +153,8 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
       }
       return `https://lite.morpho.org/${cName}/earn`
     }
+    case 'SPARK':
+      return 'https://app.spark.fi/savings'
     default:
       throw new Error(`Unknown platform ${pool.platform}`)
   }

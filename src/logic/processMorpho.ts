@@ -178,6 +178,15 @@ export async function processMorphoRewardsAndPools(
         1e18,
         stakingRewardAsset as ASSETS,
       )
+      if (!ctx.morphoRewardsByChainByAsset[chain]) ctx.morphoRewardsByChainByAsset[chain] = {}
+      accumulateDeposit(
+        ctx.morphoRewardsByChainByAsset[chain],
+        [poolInfo.asset],
+        stakingDailyEarningsBN,
+        1e18,
+        stakingRewardAsset as ASSETS,
+      )
+      accumulateDeposit(ctx.morphoRewardsByChain, [chain], stakingDailyEarningsBN, 1e18, stakingRewardAsset as ASSETS)
       if (stakingRewardAsset) {
         ctx.morphoRewardToken = stakingRewardAsset as ASSETS
         ctx.morphoRewardTotalAmount += stakingDailyEarnings

@@ -52,6 +52,15 @@ export type AavePosition = {
   borrows: { [asset: string]: Deposit }
 }
 
+export type SparkPoolEntry = {
+  asset: ASSETS
+  supplied: { [user: string]: Deposit }
+  totalAssets: bigint
+  totalSupply: bigint
+  apr: number
+  aggregatedDeposit: Deposit
+}
+
 export type LoadContext = {
   cumulativeValuesByChains: { [chain: string]: { [asset: string]: AssetStats } }
   chainAggregatedStats: { [chain: string]: ChainStats }
@@ -63,9 +72,17 @@ export type LoadContext = {
   compoundBorrowingReward: Deposit
   compoundBorrowingRewardByBorrowedAsset: { [asset: string]: Deposit }
   morphoRewardsByAsset: { [asset: string]: Deposit }
+  morphoRewardsByChainByAsset: { [chain: string]: { [asset: string]: Deposit } }
+  morphoRewardsByChain: { [chain: string]: Deposit }
   morphoRewardToken: ASSETS | ''
   morphoRewardTotalAmount: number
   morphoRewardTotalUsd: number
+  sparkRewardsByAsset: { [asset: string]: Deposit }
+  sparkRewardsByChainByAsset: { [chain: string]: { [asset: string]: Deposit } }
+  sparkRewardsByChain: { [chain: string]: Deposit }
+  sparkRewardToken: ASSETS | ''
+  sparkRewardTotalAmount: number
+  sparkRewardTotalUsd: number
   aaveAEarningsByAsset: { [asset: string]: Deposit }
   compoundSpendingsByAsset: { [asset: string]: Deposit }
   aaveVDSpendingsByAsset: { [asset: string]: Deposit }
@@ -93,6 +110,7 @@ export type LoadContext = {
   }
   compoundBorrowingInfo: { [chain: string]: { [borrowing: string]: CompoundBorrowingEntry } }
   morphoPoolInfo: { [chain: string]: { [pool: string]: MorphoPoolEntry } }
+  sparkPoolInfo: { [chain: string]: { [pool: string]: SparkPoolEntry } }
   aavePositions: { [userChain: string]: AavePosition }
   aaveReserveData: any
 
@@ -111,9 +129,17 @@ export function createLoadContext(): LoadContext {
     compoundBorrowingReward: { amount: 0, bn: 0n, usd: 0 },
     compoundBorrowingRewardByBorrowedAsset: {},
     morphoRewardsByAsset: {},
+    morphoRewardsByChainByAsset: {},
+    morphoRewardsByChain: {},
     morphoRewardToken: '',
     morphoRewardTotalAmount: 0,
     morphoRewardTotalUsd: 0,
+    sparkRewardsByAsset: {},
+    sparkRewardsByChainByAsset: {},
+    sparkRewardsByChain: {},
+    sparkRewardToken: '',
+    sparkRewardTotalAmount: 0,
+    sparkRewardTotalUsd: 0,
     aaveAEarningsByAsset: {},
     compoundSpendingsByAsset: {},
     aaveVDSpendingsByAsset: {},
@@ -139,6 +165,7 @@ export function createLoadContext(): LoadContext {
     aTokenInfo: {},
     compoundBorrowingInfo: {},
     morphoPoolInfo: {},
+    sparkPoolInfo: {},
     aavePositions: {},
     aaveReserveData: {},
 
