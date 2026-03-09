@@ -754,7 +754,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     Object.values(chau).forEach(sortByUserDeposit)
   })
 
-  const maxAPR = ((maxTotalEarnings * 36500) / totalDeposited).toFixed(2)
+  const maxAPR = totalDeposited > 0 ? ((maxTotalEarnings * 36500) / totalDeposited).toFixed(2) : '0'
 
   const poolChains: { [chain: string]: true } = {}
   const poolAssets: { [chain: string]: true } = {}
@@ -776,7 +776,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
       return b.aprNew + b.stakingAPR - (a.aprNew + a.stakingAPR)
     })
 
-  const currentAPR = ((oldTotalEarnings * 36500) / totalDeposited).toFixed(2)
+  const currentAPR = totalDeposited > 0 ? ((oldTotalEarnings * 36500) / totalDeposited).toFixed(2) : '0'
 
   const usd = Object.values(ctx.idleBalancesByAsset).reduce((acc, curr) => {
     return acc + curr.usd

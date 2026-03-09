@@ -58,7 +58,6 @@ const poolAmountInput = ref<{ [borrowable: string]: string }>({})
 const poolTxStatus = ref<{ [borrowable: string]: string }>({})
 
 const hasEthereum = computed(() => !!(window as any).ethereum)
-const showRewards = computed(() => wallet.value && data.value?.users?.includes(wallet.value))
 
 onMounted(() => {
   const ethereum = (window as any).ethereum
@@ -372,12 +371,12 @@ async function handleRedeem(pool: Pool) {
             Daily earnings: {{ toUSDCurrency(data.oldTotalEarnings) }} -> {{ toUSDCurrency(data.maxTotalEarnings) }}
           </p>
           <p class="m-0">APR: {{ data.currentAPR }}% -> {{ data.maxAPR }}%</p>
-          <p class="m-0 text-positive" v-if="showRewards && data.morphoRewards">
+          <p class="m-0 text-positive" v-if="data.morphoRewards?.usd > 0">
             Morpho rewards: {{ data.morphoRewards.amount }} {{ data.morphoRewards.token }}/day ({{
               toUSDCurrency(data.morphoRewards.usd)
             }}) | APR: {{ data.morphoRewards.apr }}%
           </p>
-          <p class="m-0 text-positive" v-if="showRewards && data.sparkRewards">
+          <p class="m-0 text-positive" v-if="data.sparkRewards?.usd > 0">
             Spark rewards: {{ data.sparkRewards.amount }} {{ data.sparkRewards.token }}/day ({{
               toUSDCurrency(data.sparkRewards.usd)
             }}) | APR: {{ data.sparkRewards.apr }}%
@@ -557,17 +556,17 @@ async function handleRedeem(pool: Pool) {
             <p class="m-0">
               Daily earnings: {{ assetProps.oldDailyEarnings }} ({{ toUSDCurrency(assetProps.oldDailyEarningsUsd) }}) ->
               {{ assetProps.maxDailyEarnings }} ({{ toUSDCurrency(assetProps.maxDailyEarningsUsd) }})
-              <span class="text-positive" v-if="showRewards && data.compoundBorrowingRewardByBorrowedAsset[asset]">
+              <span class="text-positive" v-if="data.compoundBorrowingRewardByBorrowedAsset[asset]?.usd > 0">
                 +{{ data.compoundBorrowingRewardByBorrowedAsset[asset].amount }} {{ ASSETS.COMP }} ({{
                   toUSDCurrency(data.compoundBorrowingRewardByBorrowedAsset[asset].usd)
                 }})</span
               >
-              <span class="text-positive" v-if="showRewards && data.morphoRewardsByAsset[asset]">
+              <span class="text-positive" v-if="data.morphoRewardsByAsset[asset]?.usd > 0">
                 +{{ data.morphoRewardsByAsset[asset].amount }} {{ ASSETS.WLD }} ({{
                   toUSDCurrency(data.morphoRewardsByAsset[asset].usd)
                 }})</span
               >
-              <span class="text-positive" v-if="showRewards && data.sparkRewardsByAsset[asset]">
+              <span class="text-positive" v-if="data.sparkRewardsByAsset[asset]?.usd > 0">
                 +{{ data.sparkRewardsByAsset[asset].amount }} {{ ASSETS.AVAX }} ({{
                   toUSDCurrency(data.sparkRewardsByAsset[asset].usd)
                 }})</span
@@ -643,12 +642,12 @@ async function handleRedeem(pool: Pool) {
             <p class="m-0">
               APR: {{ data.chainAggregatedStats[chain].currentAPR }}% -> {{ data.chainAggregatedStats[chain].maxAPR }}%
             </p>
-            <p class="m-0 text-positive" v-if="showRewards && data.morphoRewardsByChain[chain]">
+            <p class="m-0 text-positive" v-if="data.morphoRewardsByChain[chain]?.usd > 0">
               Morpho rewards: +{{ data.morphoRewardsByChain[chain].amount }} {{ data.morphoRewards?.token }}/day ({{
                 toUSDCurrency(data.morphoRewardsByChain[chain].usd)
               }})
             </p>
-            <p class="m-0 text-positive" v-if="showRewards && data.sparkRewardsByChain[chain]">
+            <p class="m-0 text-positive" v-if="data.sparkRewardsByChain[chain]?.usd > 0">
               Spark rewards: +{{ data.sparkRewardsByChain[chain].amount }} {{ data.sparkRewards?.token }}/day ({{
                 toUSDCurrency(data.sparkRewardsByChain[chain].usd)
               }})
@@ -700,12 +699,12 @@ async function handleRedeem(pool: Pool) {
                       Daily earnings: {{ assetProps.oldDailyEarnings }} ({{
                         toUSDCurrency(assetProps.oldDailyEarningsUsd)
                       }}) -> {{ assetProps.maxDailyEarnings }} ({{ toUSDCurrency(assetProps.maxDailyEarningsUsd) }})
-                      <span class="text-positive" v-if="showRewards && data.morphoRewardsByChainByAsset[chain]?.[asset]">
+                      <span class="text-positive" v-if="data.morphoRewardsByChainByAsset[chain]?.[asset]?.usd > 0">
                         +{{ data.morphoRewardsByChainByAsset[chain][asset].amount }} {{ data.morphoRewards?.token }} ({{
                           toUSDCurrency(data.morphoRewardsByChainByAsset[chain][asset].usd)
                         }})</span
                       >
-                      <span class="text-positive" v-if="showRewards && data.sparkRewardsByChainByAsset[chain]?.[asset]">
+                      <span class="text-positive" v-if="data.sparkRewardsByChainByAsset[chain]?.[asset]?.usd > 0">
                         +{{ data.sparkRewardsByChainByAsset[chain][asset].amount }} {{ data.sparkRewards?.token }} ({{
                           toUSDCurrency(data.sparkRewardsByChainByAsset[chain][asset].usd)
                         }})</span
@@ -830,7 +829,7 @@ async function handleRedeem(pool: Pool) {
               <p class="m-0">
                 Daily earnings: {{ pool.earningsOld }} ({{ toUSDCurrency(pool.earningsOldUsd) }}) ->
                 {{ pool.earningsNew }} ({{ toUSDCurrency(pool.earningsNewUsd) }})
-                <span class="text-positive" v-if="showRewards && pool.stakingDailyEarnings">
+                <span class="text-positive" v-if="pool.stakingDailyEarnings > 0">
                   +{{ pool.stakingDailyEarnings }} {{ pool.stakingRewardAsset }} ({{
                     toUSDCurrency(pool.stakingDailyEarningsUsd)
                   }})</span
@@ -838,7 +837,7 @@ async function handleRedeem(pool: Pool) {
               </p>
               <p class="m-0">
                 APR: {{ pool.aprOld }}% -> {{ pool.aprNew }}%
-                <span class="text-positive" v-if="showRewards && pool.stakingAPR">
+                <span class="text-positive" v-if="pool.stakingAPR > 0">
                   +{{ pool.stakingAPR }}% ({{ pool.stakingRewardAsset }})</span
                 >
                 <label
