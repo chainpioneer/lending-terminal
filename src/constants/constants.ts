@@ -210,7 +210,7 @@ export const CHAIN_CONF: {
     compoundBorrowings: [],
     spark: {
       pools: ['0x28B3a8fb53B741A8Fd78c0fb9A6B2393d896a43d'],
-      rewardsCampaignsUrl: 'https://spark2-api.blockanalitica.com/api/v1/rewards/campaigns/',
+      rewardsCampaignsUrl: 'https://spark-api-proxy.chainpioneer.workers.dev/api/v1/rewards/campaigns/',
     },
     rpcUrls: [
       'https://avalanche.drpc.org',
