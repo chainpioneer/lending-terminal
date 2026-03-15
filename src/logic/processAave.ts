@@ -135,6 +135,15 @@ export function processAaveBalances(
           earnings,
           earnings,
         )
+        populateCumulativeByAsset(
+          ctx.cumulativeValuesByChains[chain],
+          asset,
+          Number(aBalance),
+          Number(aBalance),
+          earnings,
+          earnings,
+          earnings,
+        )
       }
 
       if (vdBalance > 0) {

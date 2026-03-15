@@ -21,7 +21,7 @@ import {
   waitForReceipt,
 } from '../logic/router'
 import ONE from '../utils/ONE'
-import { toUSDCurrency, extractAddresses, invalidAddresses } from '../utils/formatting'
+import { toUSDCurrency, formatCompact, toUSDCompact, extractAddresses, invalidAddresses } from '../utils/formatting'
 import { getAddress } from 'ethers'
 import {
   chainIdByChain,
@@ -796,7 +796,7 @@ async function handleRedeem(pool: Pool) {
             v-if="selectedChains[pool.chain] && selectedAssets[pool.asset] && (!onlyMyDeposits || pool.suppliedBN > 0)"
           >
             <template #title
-              >{{ pool.platform === 'AAVE' ? '' : 'Collateral:' }} {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : ''
+              >{{ !['AAVE', 'MORPHO', 'SPARK'].includes(pool.platform) ? 'Collateral:' : '' }} {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : ''
               }}{{ pool.oppositeSymbol }} ({{ pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%' }})</template
             >
             <template #subtitle>
@@ -852,13 +852,14 @@ async function handleRedeem(pool: Pool) {
               </p>
               <p class="m-0">Utilization: {{ pool.utilization }}% / {{ pool.kink }}%</p>
               <StatWithBreakdown
+                v-if="pool.availableToDeposit > 0"
                 :showBreakdown="
                   pool.availableToDepositUsd > 10 &&
                   !!data.idleBalancesByChain[pool.chain]?.[pool.asset] &&
                   data.idleBalancesByChain[pool.chain]?.[pool.asset]?.usd > 10
                 "
               >
-                Capacity: {{ pool.availableToDeposit }} ({{ toUSDCurrency(pool.availableToDepositUsd) }})
+                Capacity: {{ formatCompact(pool.availableToDeposit) }} ({{ toUSDCompact(pool.availableToDepositUsd) }})
                 <label v-if="pool.availableToDepositUsd > 1_000">👀</label>
                 <template #breakdown>
                   <div
@@ -875,7 +876,7 @@ async function handleRedeem(pool: Pool) {
                   </div>
                 </template>
               </StatWithBreakdown>
-              <p class="m-0">TVL: {{ pool.tvl }} ({{ toUSDCurrency(pool.tvlUsd) }})</p>
+              <p class="m-0">TVL: {{ formatCompact(pool.tvl) }} ({{ toUSDCompact(pool.tvlUsd) }})</p>
             </template>
             <template #footer>
               <div class="flex justify-center items-center">
@@ -953,8 +954,8 @@ async function handleRedeem(pool: Pool) {
                   </div>
                 </template>
               </template>
-              <div class="flex items-center justify-between">
-                <div>
+              <div class="pool-icon-bar">
+                <div class="pool-icon-bar-left">
                   <Image :src="chainImgSrc(pool.chain)" :alt="pool.chain" width="25px" />
                   <Image :src="platformImgSrc(pool.platform)" :alt="pool.platform" width="25px" />
                 </div>
@@ -1056,6 +1057,16 @@ async function handleRedeem(pool: Pool) {
 .pool-tx-status {
   font-size: 0.8rem;
   margin-top: 0.25rem;
+}
+.pool-icon-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pool-icon-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 @media (max-width: 640px) {

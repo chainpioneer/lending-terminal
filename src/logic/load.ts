@@ -625,6 +625,22 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
         .reduce((acc, { usd }) => acc + usd, 0)
         .toFixed(2),
     )
+    for (const asset in props) {
+      if (!ctx.cumulativeValuesByChains[chain][asset] && props[asset].usd > 0) {
+        ctx.cumulativeValuesByChains[chain][asset] = {
+          oldUserSupplied: 0,
+          newUserSupplied: 0,
+          newUserSuppliedUsd: 0,
+          oldDailyEarnings: 0,
+          oldDailyEarningsUsd: 0,
+          newDailyEarnings: 0,
+          maxDailyEarnings: 0,
+          maxDailyEarningsUsd: 0,
+          currentAPR: 0,
+          maxAPR: 0,
+        }
+      }
+    }
   })
 
   const sortedChains = Object.keys(ctx.cumulativeValuesByChains).sort((a, b) => {

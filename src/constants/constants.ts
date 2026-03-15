@@ -1,6 +1,7 @@
 import Web3 from 'web3'
 
 export enum Chains {
+  MAINNET = 'MAINNET',
   BASE = 'BASE',
   OP = 'OP',
   AVAX = 'AVAX',
@@ -88,6 +89,27 @@ export const CHAIN_CONF: {
     }
   }
 } = {
+  [Chains.MAINNET]: {
+    borrowables: [],
+    staking: {},
+    aaveLendingPool: '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2',
+    compoundBorrowings: [],
+    rpcUrls: [
+      'https://eth.drpc.org',
+      'https://1rpc.io/eth',
+      'https://ethereum-rpc.publicnode.com',
+      'https://mainnet.gateway.tenderly.co',
+    ],
+    chainId: 1,
+    assets: {
+      '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': ASSETS.ETH,
+      '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': ASSETS.USDC,
+      '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0': ASSETS.wstETH,
+      '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599': ASSETS.WBTC,
+      '0xc00e94Cb662C3520282E6f5717214004A7f26888': ASSETS.COMP,
+      '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf': ASSETS.cbBTC,
+    },
+  },
   [Chains.BASE]: {
     borrowables: [
       web3Inst.utils.toChecksumAddress('0x271dbacca7b447db75d4751ecb7fc3dab4910916'),

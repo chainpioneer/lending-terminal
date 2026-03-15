@@ -1,6 +1,7 @@
 import { ASSETS, Chains } from '../constants/constants'
 
 export const chainIdByChain: { [ch in Chains]: string } = {
+  [Chains.MAINNET]: '0x1',
   [Chains.OP]: '0xa',
   [Chains.BASE]: '0x2105',
   [Chains.SONIC]: '0x92',
@@ -12,6 +13,8 @@ const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockcha
 
 export function chainImgSrc(ch: number | string) {
   switch (ch) {
+    case Chains.MAINNET:
+      return `${TW}/ethereum/info/logo.png`
     case Chains.BASE:
       return `${TW}/base/info/logo.png`
     case Chains.OP:
@@ -86,6 +89,9 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
     case 'Tarot': {
       let chainId
       switch (pool.chain) {
+        case Chains.MAINNET:
+          chainId = '1'
+          break
         case Chains.BASE:
           chainId = '8453'
           break
@@ -131,6 +137,9 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
     case 'AAVE': {
       let chainName
       switch (pool.chain) {
+        case Chains.MAINNET:
+          chainName = 'mainnet'
+          break
         case Chains.BASE:
           chainName = 'base'
           break
@@ -163,6 +172,9 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
 export function linkToExplorer(pool: { chain: Chains; borrowable: string }) {
   let chainPrefix
   switch (pool.chain) {
+    case Chains.MAINNET:
+      chainPrefix = 'etherscan.io'
+      break
     case Chains.BASE:
       chainPrefix = 'basescan.org'
       break

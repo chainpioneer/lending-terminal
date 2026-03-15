@@ -22,6 +22,18 @@ export function toUSDCurrency(n: number | string): string {
   return `$${n.substring(0, i + 3)}${s}`
 }
 
+export function formatCompact(n: number): string {
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B'
+  if (abs >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
+  if (abs >= 1_000) return (n / 1_000).toFixed(2) + 'K'
+  return n.toFixed(2)
+}
+
+export function toUSDCompact(n: number): string {
+  return '$' + formatCompact(n)
+}
+
 export function extractAddresses(str: string): string[] {
   return str.split(',').map((s) => s.replace(' ', ''))
 }
