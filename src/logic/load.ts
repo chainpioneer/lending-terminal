@@ -7,10 +7,12 @@ import borrowableAbi from '../../abi/borrowable.json' assert { type: 'json' }
 import collateralAbi from '../../abi/collateral.json' assert { type: 'json' }
 import compoundBorrowingAbi from '../../abi/CompoundBorrowing.json' assert { type: 'json' }
 import morphoPoolAbi from '../../abi/MorphoPool.json' assert { type: 'json' }
+import revertVaultAbi from '../../abi/revertV3Vault.json' assert { type: 'json' }
 import sparkVaultAbi from '../../abi/SparkVault.json' assert { type: 'json' }
 import stakingPoolAbi from '../../abi/stakingPool.json' assert { type: 'json' }
 import vaultAbi from '../../abi/vault.json' assert { type: 'json' }
 import {
+  ARBITRUM_PAST_BLOCK_OFFSET,
   ASSETS,
   CHAIN_CONF,
   Chains,
@@ -31,6 +33,7 @@ import { buildAavePools, processAaveBalances } from './processAave'
 import { buildCompoundPositions, parseCompoundCall2Data, processCompoundCollateral } from './processCompound'
 import { processBorrowables, processCollateralPositions } from './processImpermax'
 import { parseMorphoCall1Data, processMorphoRewardsAndPools } from './processMorpho'
+import { parseRevertCall1Data, processRevertPools } from './processRevert'
 import { parseSparkCall1Data, processSparkPools } from './processSpark'
 
 export default async function load(users: string[], onChainDone?: (chain: Chains) => void) {
@@ -55,6 +58,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     ctx.compoundBorrowingInfo[chain] = {}
     ctx.morphoPoolInfo[chain] = {}
     ctx.sparkPoolInfo[chain] = {}
+    ctx.revertPoolInfo[chain] = {}
     ctx.idleBalancesByChainByAssetByUser[chain] = {}
     ctx.aaveABalancesByChainByAsset[chain] = {}
     ctx.aaveABalancesByChainByAssetAddress[chain] = {}
@@ -62,10 +66,22 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     const blockStruct = await web3EthCall(chain, 'getBlock', ['latest', false])
     const currentBlockNumber = Number(blockStruct.number)
     console.log(chain, 'block number', currentBlockNumber)
-    const pastBlockNumber =
-      currentBlockNumber - (chain === Chains.SONIC ? SONIC_PAST_BLOCK_OFFSET : DEFAULT_PAST_BLOCK_OFFSET)
+    const pastBlockOffset =
+      chain === Chains.SONIC
+        ? SONIC_PAST_BLOCK_OFFSET
+        : chain === Chains.ARBITRUM
+          ? ARBITRUM_PAST_BLOCK_OFFSET
+          : DEFAULT_PAST_BLOCK_OFFSET
+    const pastBlockNumber = currentBlockNumber - pastBlockOffset
     const blockTimestamp = Number(blockStruct.timestamp)
     const conf = CHAIN_CONF[chain as Chains]
+
+    // Fetch past block timestamp for chains without borrowables (no getBlockTimestamp from call3)
+    let pastBlockTimestamp = 0
+    if (!conf.borrowables.length) {
+      const pastBlockStruct = await web3EthCall(chain, 'getBlock', [pastBlockNumber, false])
+      pastBlockTimestamp = Number(pastBlockStruct.timestamp)
+    }
 
     // === Build call1: borrowables, staking pools, compound, AAVE reserves, morpho ===
     let callsPerBor = 0
@@ -147,6 +163,17 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
         calls1.push(pool.totalSupply())
         users.forEach((addr) => {
           calls1.push(pool.balanceOf(addr))
+        })
+      })
+    }
+    if (conf.revert) {
+      conf.revert.vaults.forEach((address) => {
+        const vault = new Contract(address, revertVaultAbi)
+        calls1.push(vault.asset())
+        calls1.push(vault.vaultInfo())
+        calls1.push(vault.totalSupply())
+        users.forEach((addr) => {
+          calls1.push(vault.balanceOf(addr))
         })
       })
     }
@@ -324,7 +351,12 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
     // === Parse spark call1 data ===
     if (conf.spark) {
-      parseSparkCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, nextCallIndex)
+      nextCallIndex = parseSparkCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, nextCallIndex)
+    }
+
+    // === Parse revert call1 data ===
+    if (conf.revert) {
+      nextCallIndex = parseRevertCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, nextCallIndex)
     }
 
     console.log('calling call3', chain)
@@ -386,6 +418,11 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
       })
     })
 
+    // Use past block timestamp for chains without borrowables
+    if (!timestamp && pastBlockTimestamp) {
+      timestamp = pastBlockTimestamp
+    }
+
     // === Process morpho rewards and build morpho pools ===
     if (conf.morpho) {
       cursor = await processMorphoRewardsAndPools(
@@ -404,6 +441,21 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     // === Process spark pools ===
     if (conf.spark) {
       cursor = await processSparkPools(
+        ctx,
+        chain,
+        conf,
+        call3Data,
+        cursor,
+        blockTimestamp,
+        timestamp,
+        currentBlockNumber,
+        pastBlockNumber,
+      )
+    }
+
+    // === Process revert pools ===
+    if (conf.revert) {
+      cursor = await processRevertPools(
         ctx,
         chain,
         conf,

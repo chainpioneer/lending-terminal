@@ -61,6 +61,17 @@ export type SparkPoolEntry = {
   aggregatedDeposit: Deposit
 }
 
+export type RevertPoolEntry = {
+  asset: ASSETS
+  supplied: { [user: string]: Deposit }
+  debt: bigint
+  lent: bigint
+  totalSupply: bigint
+  lendExchangeRateX96: bigint
+  apr: number
+  aggregatedDeposit: Deposit
+}
+
 export type LoadContext = {
   cumulativeValuesByChains: { [chain: string]: { [asset: string]: AssetStats } }
   chainAggregatedStats: { [chain: string]: ChainStats }
@@ -111,6 +122,7 @@ export type LoadContext = {
   compoundBorrowingInfo: { [chain: string]: { [borrowing: string]: CompoundBorrowingEntry } }
   morphoPoolInfo: { [chain: string]: { [pool: string]: MorphoPoolEntry } }
   sparkPoolInfo: { [chain: string]: { [pool: string]: SparkPoolEntry } }
+  revertPoolInfo: { [chain: string]: { [pool: string]: RevertPoolEntry } }
   aavePositions: { [userChain: string]: AavePosition }
   aaveReserveData: any
 
@@ -166,6 +178,7 @@ export function createLoadContext(): LoadContext {
     compoundBorrowingInfo: {},
     morphoPoolInfo: {},
     sparkPoolInfo: {},
+    revertPoolInfo: {},
     aavePositions: {},
     aaveReserveData: {},
 

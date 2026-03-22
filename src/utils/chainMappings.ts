@@ -7,6 +7,7 @@ export const chainIdByChain: { [ch in Chains]: string } = {
   [Chains.SONIC]: '0x92',
   [Chains.AVAX]: '0xa86a',
   [Chains.WLD]: '0x1e0',
+  [Chains.ARBITRUM]: '0xa4b1',
 }
 
 const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains'
@@ -25,6 +26,8 @@ export function chainImgSrc(ch: number | string) {
       return `${TW}/avalanchec/info/logo.png`
     case Chains.WLD:
       return 'https://assets.coingecko.com/coins/images/31069/standard/worldcoin.jpeg'
+    case Chains.ARBITRUM:
+      return `${TW}/arbitrum/info/logo.png`
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -79,6 +82,8 @@ export function platformImgSrc(platform: string) {
       return 'https://icons.llamao.fi/icons/protocols/spark?w=48&h=48'
     case 'AAVE':
       return 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png'
+    case 'REVERT':
+      return 'https://icons.llama.fi/revert-compoundor.png'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -164,6 +169,8 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
     }
     case 'SPARK':
       return 'https://app.spark.fi/savings'
+    case 'REVERT':
+      return 'https://revert.finance/#/lending'
     default:
       throw new Error(`Unknown platform ${pool.platform}`)
   }
@@ -189,6 +196,9 @@ export function linkToExplorer(pool: { chain: Chains; borrowable: string }) {
       break
     case Chains.WLD:
       chainPrefix = 'worldscan.org'
+      break
+    case Chains.ARBITRUM:
+      chainPrefix = 'arbiscan.io'
       break
     default:
       throw new Error(`unknown chain ${pool.chain}`)

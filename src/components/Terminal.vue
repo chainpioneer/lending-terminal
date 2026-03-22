@@ -796,7 +796,7 @@ async function handleRedeem(pool: Pool) {
             v-if="selectedChains[pool.chain] && selectedAssets[pool.asset] && (!onlyMyDeposits || pool.suppliedBN > 0)"
           >
             <template #title
-              >{{ !['AAVE', 'MORPHO', 'SPARK'].includes(pool.platform) ? 'Collateral:' : '' }} {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : ''
+              >{{ !['AAVE', 'MORPHO', 'SPARK', 'REVERT'].includes(pool.platform) ? 'Collateral:' : '' }} {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : ''
               }}{{ pool.oppositeSymbol }} ({{ pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%' }})</template
             >
             <template #subtitle>

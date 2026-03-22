@@ -7,6 +7,7 @@ export enum Chains {
   AVAX = 'AVAX',
   SONIC = 'SONIC',
   WLD = 'WLD',
+  ARBITRUM = 'ARBITRUM',
 }
 
 export enum ASSETS {
@@ -58,6 +59,7 @@ export const POOL_FILTER_APR_THRESHOLD = 2
 export const POOL_FILTER_CAPACITY_THRESHOLD = -1
 export const POOL_FILTER_MIN_TVL = 1_000
 export const SONIC_PAST_BLOCK_OFFSET = 1_000
+export const ARBITRUM_PAST_BLOCK_OFFSET = 4_000
 export const DEFAULT_PAST_BLOCK_OFFSET = 100
 
 export const assetByTokenId = Object.assign(
@@ -86,6 +88,9 @@ export const CHAIN_CONF: {
     spark?: {
       pools: string[]
       rewardsCampaignsUrl: string
+    }
+    revert?: {
+      vaults: string[]
     }
   }
 } = {
@@ -311,6 +316,27 @@ export const CHAIN_CONF: {
       '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1': ASSETS.USDC,
       '0x2cFc85d8E48F8EAB294be644d9E25C3030863003': ASSETS.WLD,
       '0x4200000000000000000000000000000000000006': ASSETS.ETH,
+    },
+  },
+  [Chains.ARBITRUM]: {
+    borrowables: [],
+    staking: {},
+    aaveLendingPool: '',
+    compoundBorrowings: [],
+    revert: {
+      vaults: ['0x74e6afef5705beb126c6d3bf46f8fad8f3e07825'],
+    },
+    rpcUrls: [
+      'https://arbitrum.drpc.org',
+      'https://0xrpc.io/arb',
+      'https://1rpc.io/arb',
+      'https://arbitrum-one-rpc.publicnode.com',
+    ],
+    chainId: 42161,
+    assets: {
+      '0xaf88d065e77c8cC2239327C5EDb3A432268e5831': ASSETS.USDC,
+      '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8': ASSETS.USDC,
+      '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1': ASSETS.ETH,
     },
   },
 }
