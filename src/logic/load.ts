@@ -18,6 +18,7 @@ import {
   Chains,
   DEFAULT_PAST_BLOCK_OFFSET,
   getDiv,
+  GNOSIS_PAST_BLOCK_OFFSET,
   POOL_FILTER_APR_THRESHOLD,
   POOL_FILTER_CAPACITY_THRESHOLD,
   POOL_FILTER_MIN_TVL,
@@ -71,7 +72,9 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
         ? SONIC_PAST_BLOCK_OFFSET
         : chain === Chains.ARBITRUM
           ? ARBITRUM_PAST_BLOCK_OFFSET
-          : DEFAULT_PAST_BLOCK_OFFSET
+          : chain === Chains.GNOSIS
+            ? GNOSIS_PAST_BLOCK_OFFSET
+            : DEFAULT_PAST_BLOCK_OFFSET
     const pastBlockNumber = currentBlockNumber - pastBlockOffset
     const blockTimestamp = Number(blockStruct.timestamp)
     const conf = CHAIN_CONF[chain as Chains]
@@ -534,6 +537,9 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
             break
           case Chains.AVAX:
             asset = ASSETS.AVAX
+            break
+          case Chains.GNOSIS:
+            asset = ASSETS.XDAI
             break
           default:
             asset = ASSETS.ETH

@@ -59,12 +59,14 @@ export function parseRevertCall1Data(
       const deposit = toDeposit(assetBalance, div, asset)
       ctx.revertPoolInfo[chain][vault].supplied[u] = deposit
 
-      accumulateUsd(ctx.suppliedByUser, [u], deposit.usd)
-      accumulateUsd(ctx.suppliedByChainByUser, [chain, u], deposit.usd)
-      accumulateDeposit(ctx.suppliedByAssetByUser, [asset, u], deposit.bn, div, asset)
-      accumulateDeposit(ctx.suppliedByChainByAssetByUser, [chain, asset, u], deposit.bn, div, asset)
-      accumulateDeposit(ctx.suppliedByChainByBorrowableByUser, [chain, vault, u], deposit.bn, div, asset)
-      addDeposit(ctx.revertPoolInfo[chain][vault].aggregatedDeposit, deposit.bn, div, asset)
+      if (deposit.bn > 0n) {
+        accumulateUsd(ctx.suppliedByUser, [u], deposit.usd)
+        accumulateUsd(ctx.suppliedByChainByUser, [chain, u], deposit.usd)
+        accumulateDeposit(ctx.suppliedByAssetByUser, [asset, u], deposit.bn, div, asset)
+        accumulateDeposit(ctx.suppliedByChainByAssetByUser, [chain, asset, u], deposit.bn, div, asset)
+        accumulateDeposit(ctx.suppliedByChainByBorrowableByUser, [chain, vault, u], deposit.bn, div, asset)
+        addDeposit(ctx.revertPoolInfo[chain][vault].aggregatedDeposit, deposit.bn, div, asset)
+      }
     })
   })
 

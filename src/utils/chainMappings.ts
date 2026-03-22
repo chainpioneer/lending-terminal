@@ -8,6 +8,7 @@ export const chainIdByChain: { [ch in Chains]: string } = {
   [Chains.AVAX]: '0xa86a',
   [Chains.WLD]: '0x1e0',
   [Chains.ARBITRUM]: '0xa4b1',
+  [Chains.GNOSIS]: '0x64',
 }
 
 const TW = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains'
@@ -28,6 +29,8 @@ export function chainImgSrc(ch: number | string) {
       return 'https://assets.coingecko.com/coins/images/31069/standard/worldcoin.jpeg'
     case Chains.ARBITRUM:
       return `${TW}/arbitrum/info/logo.png`
+    case Chains.GNOSIS:
+      return `${TW}/xdai/info/logo.png`
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -65,6 +68,8 @@ export function assetImgSrc(asset: number | string) {
       return `${TW}/ethereum/assets/0xc00e94Cb662C3520282E6f5717214004A7f26888/logo.png`
     case ASSETS.WBTC:
       return `${TW}/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png`
+    case ASSETS.XDAI:
+      return `${TW}/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png`
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -199,6 +204,9 @@ export function linkToExplorer(pool: { chain: Chains; borrowable: string }) {
       break
     case Chains.ARBITRUM:
       chainPrefix = 'arbiscan.io'
+      break
+    case Chains.GNOSIS:
+      chainPrefix = 'gnosisscan.io'
       break
     default:
       throw new Error(`unknown chain ${pool.chain}`)
