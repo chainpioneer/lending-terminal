@@ -99,6 +99,9 @@ export const CHAIN_CONF: {
     staking: {},
     aaveLendingPool: '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2',
     compoundBorrowings: [],
+    revert: {
+      vaults: ['0xa2754543f69dC036764bBfad16d2A74F5cD15667'],
+    },
     rpcUrls: [
       'https://eth.drpc.org',
       'https://1rpc.io/eth',
@@ -166,6 +169,9 @@ export const CHAIN_CONF: {
     compoundBorrowings: [
       '0x784efeB622244d2348d4F2522f8860B96fbEcE89', // AERO
     ],
+    revert: {
+      vaults: ['0x36AEAe0E411a1E28372e0d66f02E57744EbE7599'],
+    },
     staking: {
       // '0x74705C3C2E01891044f8654445DcCf6e28b51758': {
       //   pool: '0x5044792F7880Ce29B4B2cd4CD0c54DF60dfafbDB',

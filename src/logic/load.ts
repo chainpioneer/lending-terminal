@@ -247,7 +247,8 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     let assetAddressesOnAAVE: string[] = []
 
     if (conf.aaveLendingPool) {
-      assetAddressesOnAAVE = call1Data.pop().filter((x: string) => conf.assets[x])
+      const aaveReservesIndex = borrowableCallCount + conf.compoundBorrowings.length * 5
+      assetAddressesOnAAVE = call1Data[aaveReservesIndex].filter((x: string) => conf.assets[x])
       assetAddressesOnAAVE.forEach((reserve: string) => {
         calls2.push(aaveLendingPool!.getReserveData(reserve))
       })
