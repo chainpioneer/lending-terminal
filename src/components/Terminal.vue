@@ -981,14 +981,15 @@ async function handleRedeem(pool: Pool) {
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 0.75rem;
-  padding: 0.5rem;
+  gap: 1rem;
+  padding: 0.75rem;
 }
 
 .card-pool,
 .card-chain,
 .card-asset {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   transition:
     box-shadow 0.25s ease,
     transform 0.25s ease;
@@ -997,14 +998,22 @@ async function handleRedeem(pool: Pool) {
 .card-pool:hover,
 .card-chain:hover,
 .card-asset:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
+}
+
+/* Make card body flex-column so footer sticks to bottom */
+.card-pool :deep(.p-card-body) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* Content vertical rhythm */
 .card-pool :deep(.p-card-content) p,
 .card-chain :deep(.p-card-content) p {
-  margin: 0.4rem 0;
+  margin: 0.35rem 0;
+  line-height: 1.5;
 }
 
 /* Truncate long addresses in card subtitles */
@@ -1015,16 +1024,22 @@ async function handleRedeem(pool: Pool) {
   font-size: 0.8rem;
 }
 
+/* Footer grows to fill remaining height; icon bar sinks to bottom */
+.card-pool :deep(.p-card-footer) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Button row gap */
 .card-pool :deep(.p-card-footer) .flex {
   gap: 0.5rem;
 }
 
-/* Footer icon bar spacing */
-.card-pool :deep(.p-card-footer) > .flex:last-child {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(128, 128, 128, 0.15);
+/* Footer icon bar spacing — margin-top: auto pins icons to bottom */
+.pool-icon-bar {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.12);
 }
 
 .filter-bar {
@@ -1062,6 +1077,7 @@ async function handleRedeem(pool: Pool) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: auto;
 }
 .pool-icon-bar-left {
   display: flex;
