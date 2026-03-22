@@ -314,9 +314,23 @@ async function handleRedeem(pool: Pool) {
 
 <template>
   <h1>{{ msg }}</h1>
-  <Card>
+  <Card class="address-card">
     <template #content>
-      <InputText v-model="addresses" class="w-full" placeholder="input addresses" size="large" />
+      <div class="address-input-wrapper">
+        <InputText
+          v-model="addresses"
+          class="w-full address-input"
+          placeholder="Enter wallet addresses (comma-separated)"
+          size="large"
+        />
+        <button
+          v-if="!addresses"
+          class="example-link"
+          @click="addresses = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'"
+        >
+          try example address
+        </button>
+      </div>
     </template>
     <template #footer>
       <div>
@@ -970,6 +984,40 @@ async function handleRedeem(pool: Pool) {
 </template>
 
 <style scoped>
+.address-card {
+  margin: 0 1rem;
+}
+
+.address-input-wrapper {
+  position: relative;
+}
+
+.address-input {
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
+.example-link {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--p-primary-color, #6366f1);
+  cursor: pointer;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.example-link:hover {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.08);
+}
+
 .toggleable-area {
   margin: 1rem;
 }
