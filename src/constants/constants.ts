@@ -276,7 +276,7 @@ export const CHAIN_CONF: {
       web3Inst.utils.toChecksumAddress('0x6D053bD7266eF5e047bdd0F557AAb75e255EBe9D'),
       web3Inst.utils.toChecksumAddress('0x6b6E9E5e8E3d35383dea994D9f01cD9680F7bc4E'),
       web3Inst.utils.toChecksumAddress('0xfc28227028e06a71283ecd4f8d2d8955e09778ef'),
-      web3Inst.utils.toChecksumAddress('0x2de6f52dbb457dffecf1b51602c991afcdc7f780'),
+      // web3Inst.utils.toChecksumAddress('0x2de6f52dbb457dffecf1b51602c991afcdc7f780'), // toxic
       web3Inst.utils.toChecksumAddress('0x13764f3cc643c99cbbc2961e78968ca70b6e7aa9'),
       // web3Inst.utils.toChecksumAddress('0xcedfb59ef6f24d2c05d639d4672c6644f8e49b8a'), // toxic
       web3Inst.utils.toChecksumAddress('0x5785228ec74209fee27df324d428be92f1244b0e'),
