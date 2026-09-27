@@ -4,8 +4,6 @@ import load from '../logic/load'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Image from 'primevue/image'
-import ProgressSpinner from 'primevue/progressspinner'
 import Panel from 'primevue/panel'
 import { ASSETS, CHAIN_CONF, Chains, getDiv } from '../constants/constants'
 import ToggleSwitch from 'primevue/toggleswitch'
@@ -58,6 +56,23 @@ const poolAmountInput = ref<{ [borrowable: string]: string }>({})
 const poolTxStatus = ref<{ [borrowable: string]: string }>({})
 
 const hasEthereum = computed(() => !!(window as any).ethereum)
+
+const visiblePools = computed<Pool[]>(() =>
+  (data.value?.goodPools ?? []).filter(
+    (pool: Pool) =>
+      selectedChains.value[pool.chain] &&
+      selectedAssets.value[pool.asset] &&
+      (!onlyMyDeposits.value || pool.suppliedBN > 0),
+  ),
+)
+
+const hasLendingPositions = computed(
+  () =>
+    Object.keys(data.value?.aavePositions ?? {}).length > 0 ||
+    Object.values(data.value?.compoundBorrowingInfo ?? {}).some((markets: any) =>
+      Object.values(markets).some((market: any) => Object.keys(market.positions ?? {}).length > 0),
+    ),
+)
 
 onMounted(() => {
   const ethereum = (window as any).ethereum
@@ -302,65 +317,57 @@ async function handleRedeem(pool: Pool) {
 </script>
 
 <template>
-  <h1>{{ msg }}</h1>
+  <header class="page-header">
+    <h1>{{ msg }}</h1>
+  </header>
+
   <Card class="address-card">
     <template #content>
-      <div class="address-input-wrapper">
-        <InputText
-          v-model="addresses"
-          class="w-full address-input"
-          placeholder="Enter wallet addresses (comma-separated)"
-          size="large"
-        />
-        <button
-          v-if="!addresses"
-          class="example-link"
-          @click="addresses = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'"
-        >
-          try example address
-        </button>
-      </div>
-    </template>
-    <template #footer>
-      <div>
-        <div v-if="fetchingData" class="text-center">
-          <ProgressSpinner
-            style="width: 50px; height: 50px"
-            strokeWidth="8"
-            fill="transparent"
-            animationDuration=".5s"
-            aria-label="Custom ProgressSpinner"
+      <div class="address-row">
+        <div class="address-input-wrapper">
+          <InputText
+            v-model="addresses"
+            class="address-input"
+            placeholder="Enter wallet addresses (comma-separated)"
+            aria-label="Wallet addresses"
+            size="large"
+            @keydown.enter="!invalidAddresses(addresses) && !fetchingData && fetchData()"
           />
-          <p class="m-0">Fetching: {{ pendingChains.join(', ') || 'finalizing...' }}</p>
+          <button
+            v-if="!addresses"
+            type="button"
+            class="example-link"
+            @click="addresses = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'"
+          >
+            try example address
+          </button>
         </div>
-        <template v-else>
-          <Button
-            label="fetch data"
-            class="w-full"
-            :disabled="invalidAddresses(addresses) || fetchingData"
-            @click="fetchData"
-          ></Button>
-        </template>
+        <Button
+          label="Fetch data"
+          size="large"
+          class="fetch-button"
+          :loading="fetchingData"
+          :disabled="invalidAddresses(addresses) || fetchingData"
+          @click="fetchData"
+        />
       </div>
+      <p v-if="fetchingData" class="fetch-status">Fetching: {{ pendingChains.join(', ') || 'finalizing...' }}</p>
     </template>
   </Card>
 
-  <Panel
-    header="Global stats"
-    toggleable
-    class="toggleable-area"
-    :collapsed="collapsed.globals"
-    @update:collapsed="
-      (event) => {
-        setCollapsed('globals', event)
-      }
-    "
-  >
-    <template v-if="data">
-      <Card class="card-chain">
-        <template #content>
+  <template v-if="data">
+    <Panel
+      header="Global stats"
+      toggleable
+      class="section"
+      :collapsed="collapsed.globals"
+      @update:collapsed="(event) => setCollapsed('globals', event)"
+    >
+      <div class="kpi-grid">
+        <div class="kpi">
+          <span class="kpi-label">Total deposited</span>
           <StatWithBreakdown :showBreakdown="data.users.length > 1">
-            Total deposited: {{ toUSDCurrency(data.totalDeposited) }}
+            {{ toUSDCurrency(data.totalDeposited) }}
             <template #breakdown>
               <div v-for="(usd, address) in data.suppliedByUser" :key="address" class="flex items-center gap-2">
                 <div>
@@ -370,22 +377,21 @@ async function handleRedeem(pool: Pool) {
               </div>
             </template>
           </StatWithBreakdown>
-          <p class="m-0">
-            Daily earnings: {{ toUSDCurrency(data.oldTotalEarnings) }} -> {{ toUSDCurrency(data.maxTotalEarnings) }}
-          </p>
-          <p class="m-0">APR: {{ data.currentAPR }}% -> {{ data.maxAPR }}%</p>
-          <p class="m-0 text-positive" v-if="data.morphoRewards?.usd > 0">
-            Morpho rewards: {{ data.morphoRewards.amount }} {{ data.morphoRewards.token }}/day ({{
-              toUSDCurrency(data.morphoRewards.usd)
-            }}) | APR: {{ data.morphoRewards.apr }}%
-          </p>
-          <p class="m-0 text-positive" v-if="data.sparkRewards?.usd > 0">
-            Spark rewards: {{ data.sparkRewards.amount }} {{ data.sparkRewards.token }}/day ({{
-              toUSDCurrency(data.sparkRewards.usd)
-            }}) | APR: {{ data.sparkRewards.apr }}%
-          </p>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Daily earnings</span>
+          <StatWithBreakdown>
+            {{ toUSDCurrency(data.oldTotalEarnings) }} → {{ toUSDCurrency(data.maxTotalEarnings) }}
+          </StatWithBreakdown>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">APR</span>
+          <StatWithBreakdown>{{ data.currentAPR }}% → {{ data.maxAPR }}%</StatWithBreakdown>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Idle</span>
           <StatWithBreakdown :showBreakdown="data.users.length > 1">
-            Idle: {{ toUSDCurrency(data.usd) }}
+            {{ toUSDCurrency(data.usd) }}
             <template #breakdown>
               <div v-for="(usd, address) in data.idleBalancesByUser" :key="address" class="flex items-center gap-2">
                 <div>
@@ -395,154 +401,157 @@ async function handleRedeem(pool: Pool) {
               </div>
             </template>
           </StatWithBreakdown>
-        </template>
-      </Card>
-    </template>
-  </Panel>
+        </div>
+      </div>
+      <p class="rewards text-positive" v-if="data.morphoRewards?.usd > 0">
+        Morpho rewards: {{ data.morphoRewards.amount }} {{ data.morphoRewards.token }}/day ({{
+          toUSDCurrency(data.morphoRewards.usd)
+        }}) · APR {{ data.morphoRewards.apr }}%
+      </p>
+      <p class="rewards text-positive" v-if="data.sparkRewards?.usd > 0">
+        Spark rewards: {{ data.sparkRewards.amount }} {{ data.sparkRewards.token }}/day ({{
+          toUSDCurrency(data.sparkRewards.usd)
+        }}) · APR {{ data.sparkRewards.apr }}%
+      </p>
+    </Panel>
 
-  <Panel
-    header="L&B positions"
-    class="toggleable-area"
-    toggleable
-    :collapsed="collapsed.lending"
-    @update:collapsed="
-      (event) => {
-        setCollapsed('lending', event)
-      }
-    "
-  >
-    <div class="card-grid">
-      <template v-if="data" v-for="(chainProps, chain) in data.compoundBorrowingInfo" :key="chain">
-        <template v-if="data" v-for="(marketProps, market) in chainProps" :key="market">
-          <template v-if="data" v-for="(positionProps, user) in marketProps.positions" :key="user">
-            <Card class="card-chain">
+    <Panel
+      v-if="hasLendingPositions"
+      header="L&B positions"
+      toggleable
+      class="section"
+      :collapsed="collapsed.lending"
+      @update:collapsed="(event) => setCollapsed('lending', event)"
+    >
+      <div class="card-grid">
+        <template v-for="(chainProps, chain) in data.compoundBorrowingInfo" :key="chain">
+          <template v-for="(marketProps, market) in chainProps" :key="market">
+            <Card v-for="(positionProps, user) in marketProps.positions" :key="user" class="card-stat">
               <template #title>
-                <Image :src="assetImgSrc(marketProps.asset)" :alt="marketProps.asset" width="50px" />
+                <div class="card-head">
+                  <img :src="assetImgSrc(marketProps.asset)" :alt="marketProps.asset" class="icon" />
+                  <span>{{ marketProps.asset }}</span>
+                </div>
               </template>
-              <template #subtitle> {{ user }} </template>
+              <template #subtitle>
+                <span class="mono">{{ user }}</span>
+              </template>
               <template #content>
-                Supplied: {{ toUSDCurrency(positionProps.collateralTotalUsd) }}
+                <StatWithBreakdown label="Supplied">{{
+                  toUSDCurrency(positionProps.collateralTotalUsd)
+                }}</StatWithBreakdown>
                 <template v-for="(collateralProps, collateral) in marketProps.collaterals" :key="collateral">
-                  <template v-if="collateralProps[user] && collateralProps[user].bn > 0">
-                    <div>
-                      <span class="text-secondary"
-                        >{{ collateralProps[user].amount }} {{ marketProps.collateralToAsset[collateral] }} ({{
-                          toUSDCurrency(collateralProps[user].usd)
-                        }})</span
-                      >
-                    </div>
-                  </template>
+                  <p v-if="collateralProps[user] && collateralProps[user].bn > 0" class="stat-sub">
+                    {{ collateralProps[user].amount }} {{ marketProps.collateralToAsset[collateral] }} ({{
+                      toUSDCurrency(collateralProps[user].usd)
+                    }})
+                  </p>
                 </template>
-
-                <div>
-                  Borrowed: {{ marketProps.borrowed[user].amount }} {{ marketProps.asset }} ({{
+                <StatWithBreakdown label="Borrowed">
+                  {{ marketProps.borrowed[user].amount }} {{ marketProps.asset }} ({{
                     toUSDCurrency(marketProps.borrowed[user].usd)
                   }})
-                </div>
-                <div>
-                  Daily borrowing cost: {{ marketProps.spendings[user].amount }} {{ marketProps.asset }} ({{
+                </StatWithBreakdown>
+                <StatWithBreakdown label="Daily borrowing cost">
+                  {{ marketProps.spendings[user].amount }} {{ marketProps.asset }} ({{
                     toUSDCurrency(marketProps.spendings[user].usd)
                   }})
-                </div>
-                <div>
-                  Daily reward: {{ marketProps.rewards[user].amount }} {{ ASSETS.COMP }} ({{
+                </StatWithBreakdown>
+                <StatWithBreakdown label="Daily reward">
+                  {{ marketProps.rewards[user].amount }} {{ ASSETS.COMP }} ({{
                     toUSDCurrency(marketProps.rewards[user].usd)
                   }})
-                </div>
-                <div>Resulting APR: {{ positionProps.apr }}%</div>
-                <div>Health factor: {{ positionProps.healthFactor }}</div>
-                <div>
-                  Liquidation price: {{ toUSDCurrency(positionProps.liquidationPrice) }} (current:
-                  {{ toUSDCurrency(marketProps.assetPrice) }})
-                </div>
+                </StatWithBreakdown>
+                <StatWithBreakdown label="Resulting APR">{{ positionProps.apr }}%</StatWithBreakdown>
+                <StatWithBreakdown label="Health factor">{{ positionProps.healthFactor }}</StatWithBreakdown>
+                <StatWithBreakdown label="Liquidation price">
+                  {{ toUSDCurrency(positionProps.liquidationPrice) }} (now {{ toUSDCurrency(marketProps.assetPrice) }})
+                </StatWithBreakdown>
               </template>
             </Card>
           </template>
         </template>
-      </template>
-      <template v-if="data" v-for="(positionProps, userChain) in data.aavePositions" :key="userChain">
-        <Card class="card-chain">
+        <Card v-for="(positionProps, userChain) in data.aavePositions" :key="userChain" class="card-stat">
           <template #title>
-            <Image :src="platformImgSrc('AAVE')" alt="AAVE" width="50px" />
-            <Image
-              :src="chainImgSrc((userChain as unknown as string).substring(42))"
-              :alt="(userChain as unknown as string).substring(42)"
-              width="50px"
-            />
-          </template>
-          <template #subtitle> {{ (userChain as unknown as string).substring(0, 42) }} </template>
-          <template #content>
-            Supplied: {{ toUSDCurrency(positionProps.collateralTotalUsd) }}
-            <template v-for="(collateralProps, asset) in positionProps.collaterals" :key="asset">
-              <template v-if="collateralProps.bn > 0">
-                <div>
-                  <span class="text-secondary"
-                    >{{ collateralProps.amount }} {{ asset }} ({{ toUSDCurrency(collateralProps.usd) }})</span
-                  >
-                </div>
-              </template>
-            </template>
-
-            <div>Borrowed: {{ toUSDCurrency(positionProps.borrowedTotalUsd) }}</div>
-            <template v-for="(borrowProps, asset) in positionProps.borrows" :key="asset">
-              <template v-if="borrowProps.bn > 0">
-                <div>
-                  <span class="text-secondary"
-                    >{{ borrowProps.amount }} {{ asset }} ({{ toUSDCurrency(borrowProps.usd) }})</span
-                  >
-                </div>
-              </template>
-            </template>
-            <div>Daily borrowing cost: {{ toUSDCurrency(positionProps.spendings) }}</div>
-            <div>Daily earnings: {{ toUSDCurrency(positionProps.earnings) }}</div>
-            <div>Resulting APR: {{ positionProps.apr }}%</div>
-            <div>Health factor: {{ positionProps.healthFactor }}</div>
-
-            <div class="flex justify-center items-center">
-              <Button
-                as="a"
-                label="Go to AAVE"
-                severity="secondary"
-                outlined
-                class="w-full"
-                :href="
-                  linkToPool({
-                    vault: '',
-                    platform: 'AAVE',
-                    stable: false,
-                    chain: (userChain as unknown as string).substring(42) as Chains,
-                  })
-                "
-                target="_blank"
-                rel="noopener"
+            <div class="card-head">
+              <img :src="platformImgSrc('AAVE')" alt="AAVE" class="icon" />
+              <img
+                :src="chainImgSrc(String(userChain).substring(42))"
+                :alt="String(userChain).substring(42)"
+                class="icon"
               />
+              <span>AAVE · {{ String(userChain).substring(42) }}</span>
             </div>
           </template>
-        </Card>
-      </template>
-    </div>
-  </Panel>
-
-  <Panel
-    header="Liquidity by assets"
-    class="toggleable-area"
-    toggleable
-    :collapsed="collapsed.assets"
-    @update:collapsed="
-      (event) => {
-        setCollapsed('assets', event)
-      }
-    "
-  >
-    <div class="card-grid">
-      <template v-if="data" v-for="(assetProps, asset) in data.cumulativeValuesByAsset" :key="asset">
-        <Card class="card-chain">
-          <template #title>
-            <Image :src="assetImgSrc(asset)" :alt="asset" width="50px" />
+          <template #subtitle>
+            <span class="mono">{{ String(userChain).substring(0, 42) }}</span>
           </template>
           <template #content>
-            <StatWithBreakdown :showBreakdown="data.users.length > 1 && !!data.suppliedByAssetByUser[asset]">
-              Supplied: {{ assetProps.newUserSupplied }} ({{ toUSDCurrency(assetProps.newUserSuppliedUsd) }})
+            <StatWithBreakdown label="Supplied">{{
+              toUSDCurrency(positionProps.collateralTotalUsd)
+            }}</StatWithBreakdown>
+            <template v-for="(collateralProps, asset) in positionProps.collaterals" :key="asset">
+              <p v-if="collateralProps.bn > 0" class="stat-sub">
+                {{ collateralProps.amount }} {{ asset }} ({{ toUSDCurrency(collateralProps.usd) }})
+              </p>
+            </template>
+            <StatWithBreakdown label="Borrowed">{{ toUSDCurrency(positionProps.borrowedTotalUsd) }}</StatWithBreakdown>
+            <template v-for="(borrowProps, asset) in positionProps.borrows" :key="asset">
+              <p v-if="borrowProps.bn > 0" class="stat-sub">
+                {{ borrowProps.amount }} {{ asset }} ({{ toUSDCurrency(borrowProps.usd) }})
+              </p>
+            </template>
+            <StatWithBreakdown label="Daily borrowing cost">{{
+              toUSDCurrency(positionProps.spendings)
+            }}</StatWithBreakdown>
+            <StatWithBreakdown label="Daily earnings">{{ toUSDCurrency(positionProps.earnings) }}</StatWithBreakdown>
+            <StatWithBreakdown label="Resulting APR">{{ positionProps.apr }}%</StatWithBreakdown>
+            <StatWithBreakdown label="Health factor">{{ positionProps.healthFactor }}</StatWithBreakdown>
+          </template>
+          <template #footer>
+            <Button
+              as="a"
+              label="Go to AAVE"
+              severity="secondary"
+              outlined
+              class="w-full"
+              :href="
+                linkToPool({
+                  vault: '',
+                  platform: 'AAVE',
+                  stable: false,
+                  chain: String(userChain).substring(42) as Chains,
+                })
+              "
+              target="_blank"
+              rel="noopener"
+            />
+          </template>
+        </Card>
+      </div>
+    </Panel>
+
+    <Panel
+      header="Liquidity by assets"
+      toggleable
+      class="section"
+      :collapsed="collapsed.assets"
+      @update:collapsed="(event) => setCollapsed('assets', event)"
+    >
+      <div class="card-grid">
+        <Card v-for="(assetProps, asset) in data.cumulativeValuesByAsset" :key="asset" class="card-stat">
+          <template #title>
+            <div class="card-head">
+              <img :src="assetImgSrc(asset)" :alt="String(asset)" class="icon" />
+              <span>{{ asset }}</span>
+            </div>
+          </template>
+          <template #content>
+            <StatWithBreakdown
+              label="Supplied"
+              :showBreakdown="data.users.length > 1 && !!data.suppliedByAssetByUser[asset]"
+            >
+              {{ assetProps.newUserSupplied }} ({{ toUSDCurrency(assetProps.newUserSuppliedUsd) }})
               <template #breakdown>
                 <div
                   v-for="({ amount, usd }, address) in data.suppliedByAssetByUser[asset]"
@@ -556,8 +565,8 @@ async function handleRedeem(pool: Pool) {
                 </div>
               </template>
             </StatWithBreakdown>
-            <p class="m-0">
-              Daily earnings: {{ assetProps.oldDailyEarnings }} ({{ toUSDCurrency(assetProps.oldDailyEarningsUsd) }}) ->
+            <StatWithBreakdown label="Daily earnings">
+              {{ assetProps.oldDailyEarnings }} ({{ toUSDCurrency(assetProps.oldDailyEarningsUsd) }}) →
               {{ assetProps.maxDailyEarnings }} ({{ toUSDCurrency(assetProps.maxDailyEarningsUsd) }})
               <span class="text-positive" v-if="data.compoundBorrowingRewardByBorrowedAsset[asset]?.usd > 0">
                 +{{ data.compoundBorrowingRewardByBorrowedAsset[asset].amount }} {{ ASSETS.COMP }} ({{
@@ -574,18 +583,17 @@ async function handleRedeem(pool: Pool) {
                   toUSDCurrency(data.sparkRewardsByAsset[asset].usd)
                 }})</span
               >
-            </p>
-            <p class="m-0">APR: {{ assetProps.currentAPR }}% -> {{ assetProps.maxAPR }}%</p>
+            </StatWithBreakdown>
+            <StatWithBreakdown label="APR">{{ assetProps.currentAPR }}% → {{ assetProps.maxAPR }}%</StatWithBreakdown>
             <StatWithBreakdown
+              label="Idle"
               :showBreakdown="
                 data.users.length > 1 &&
                 !!data.idleBalancesByAssetByUser[asset] &&
                 Object.keys(data.idleBalancesByAssetByUser[asset]).length > 0
               "
             >
-              Idle: {{ data.idleBalancesByAsset[asset].amount }} ({{
-                toUSDCurrency(data.idleBalancesByAsset[asset].usd)
-              }})
+              {{ data.idleBalancesByAsset[asset].amount }} ({{ toUSDCurrency(data.idleBalancesByAsset[asset].usd) }})
               <template #breakdown>
                 <div
                   v-for="({ amount, usd }, address) in data.idleBalancesByAssetByUser[asset]"
@@ -601,30 +609,30 @@ async function handleRedeem(pool: Pool) {
             </StatWithBreakdown>
           </template>
         </Card>
-      </template>
-    </div>
-  </Panel>
+      </div>
+    </Panel>
 
-  <Panel
-    header="Liquidity by chains"
-    class="toggleable-area"
-    toggleable
-    :collapsed="collapsed.chains"
-    @update:collapsed="
-      (event) => {
-        setCollapsed('chains', event)
-      }
-    "
-  >
-    <div class="card-grid">
-      <template v-if="data" v-for="(chainProps, chain) in data.cumulativeValuesByChains" :key="chain">
-        <Card class="card-chain">
+    <Panel
+      header="Liquidity by chains"
+      toggleable
+      class="section"
+      :collapsed="collapsed.chains"
+      @update:collapsed="(event) => setCollapsed('chains', event)"
+    >
+      <div class="card-grid">
+        <Card v-for="(chainProps, chain) in data.cumulativeValuesByChains" :key="chain" class="card-stat">
           <template #title>
-            <Image :src="chainImgSrc(chain)" :alt="chain" width="50px" />
+            <div class="card-head">
+              <img :src="chainImgSrc(chain)" :alt="String(chain)" class="icon" />
+              <span>{{ chain }}</span>
+            </div>
           </template>
           <template #content>
-            <StatWithBreakdown :showBreakdown="data.users.length > 1 && !!data.suppliedByChainByUser[chain]">
-              Total supplied: {{ toUSDCurrency(data.chainAggregatedStats[chain].newUserSuppliedUsd) }}
+            <StatWithBreakdown
+              label="Total supplied"
+              :showBreakdown="data.users.length > 1 && !!data.suppliedByChainByUser[chain]"
+            >
+              {{ toUSDCurrency(data.chainAggregatedStats[chain].newUserSuppliedUsd) }}
               <template #breakdown>
                 <div
                   v-for="(usd, address) in data.suppliedByChainByUser[chain]"
@@ -638,25 +646,29 @@ async function handleRedeem(pool: Pool) {
                 </div>
               </template>
             </StatWithBreakdown>
-            <p class="m-0">
-              Daily earnings: {{ toUSDCurrency(data.chainAggregatedStats[chain].oldDailyEarningsUsd) }} ->
+            <StatWithBreakdown label="Daily earnings">
+              {{ toUSDCurrency(data.chainAggregatedStats[chain].oldDailyEarningsUsd) }} →
               {{ toUSDCurrency(data.chainAggregatedStats[chain].maxDailyEarningsUsd) }}
-            </p>
-            <p class="m-0">
-              APR: {{ data.chainAggregatedStats[chain].currentAPR }}% -> {{ data.chainAggregatedStats[chain].maxAPR }}%
-            </p>
-            <p class="m-0 text-positive" v-if="data.morphoRewardsByChain[chain]?.usd > 0">
-              Morpho rewards: +{{ data.morphoRewardsByChain[chain].amount }} {{ data.morphoRewards?.token }}/day ({{
-                toUSDCurrency(data.morphoRewardsByChain[chain].usd)
-              }})
-            </p>
-            <p class="m-0 text-positive" v-if="data.sparkRewardsByChain[chain]?.usd > 0">
-              Spark rewards: +{{ data.sparkRewardsByChain[chain].amount }} {{ data.sparkRewards?.token }}/day ({{
-                toUSDCurrency(data.sparkRewardsByChain[chain].usd)
-              }})
-            </p>
-            <StatWithBreakdown :showBreakdown="data.users.length > 1">
-              Idle: {{ toUSDCurrency(data.chainAggregatedStats[chain].usd) }}
+            </StatWithBreakdown>
+            <StatWithBreakdown label="APR">
+              {{ data.chainAggregatedStats[chain].currentAPR }}% → {{ data.chainAggregatedStats[chain].maxAPR }}%
+            </StatWithBreakdown>
+            <StatWithBreakdown v-if="data.morphoRewardsByChain[chain]?.usd > 0" label="Morpho rewards">
+              <span class="text-positive">
+                +{{ data.morphoRewardsByChain[chain].amount }} {{ data.morphoRewards?.token }}/day ({{
+                  toUSDCurrency(data.morphoRewardsByChain[chain].usd)
+                }})
+              </span>
+            </StatWithBreakdown>
+            <StatWithBreakdown v-if="data.sparkRewardsByChain[chain]?.usd > 0" label="Spark rewards">
+              <span class="text-positive">
+                +{{ data.sparkRewardsByChain[chain].amount }} {{ data.sparkRewards?.token }}/day ({{
+                  toUSDCurrency(data.sparkRewardsByChain[chain].usd)
+                }})
+              </span>
+            </StatWithBreakdown>
+            <StatWithBreakdown label="Idle" :showBreakdown="data.users.length > 1">
+              {{ toUSDCurrency(data.chainAggregatedStats[chain].usd) }}
               <template #breakdown>
                 <div
                   v-for="(usd, address) in data.idleBalancesByChainByUser[chain]"
@@ -670,431 +682,717 @@ async function handleRedeem(pool: Pool) {
                 </div>
               </template>
             </StatWithBreakdown>
-            <Panel header="Assets" toggleable collapsed>
-              <template v-for="(assetProps, asset) in chainProps" :key="asset">
-                <Card class="card-asset">
-                  <template #title>
-                    <Image :src="assetImgSrc(asset)" :alt="asset" width="30px" />
-                  </template>
-                  <template #content>
-                    <StatWithBreakdown
-                      :showBreakdown="
-                        data.users.length > 1 &&
-                        !!data.suppliedByChainByAssetByUser[chain] &&
-                        !!data.suppliedByChainByAssetByUser[chain][asset]
-                      "
+            <Panel header="Assets" toggleable collapsed class="sub-panel">
+              <div v-for="(assetProps, asset) in chainProps" :key="asset" class="sub-asset">
+                <div class="card-head small">
+                  <img :src="assetImgSrc(asset)" :alt="String(asset)" class="icon" />
+                  <span>{{ asset }}</span>
+                </div>
+                <StatWithBreakdown
+                  label="Supplied"
+                  :showBreakdown="
+                    data.users.length > 1 &&
+                    !!data.suppliedByChainByAssetByUser[chain] &&
+                    !!data.suppliedByChainByAssetByUser[chain][asset]
+                  "
+                >
+                  {{ assetProps.newUserSupplied }} ({{ toUSDCurrency(assetProps.newUserSuppliedUsd) }})
+                  <template #breakdown>
+                    <div
+                      v-for="({ amount, usd }, address) in data.suppliedByChainByAssetByUser[chain][asset]"
+                      :key="address"
+                      class="flex items-center gap-2"
                     >
-                      Supplied: {{ assetProps.newUserSupplied }} ({{ toUSDCurrency(assetProps.newUserSuppliedUsd) }})
-                      <template #breakdown>
-                        <div
-                          v-for="({ amount, usd }, address) in data.suppliedByChainByAssetByUser[chain][asset]"
-                          :key="address"
-                          class="flex items-center gap-2"
-                        >
-                          <div>
-                            <span class="mono">{{ address }}</span
-                            >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
-                          </div>
-                        </div>
-                      </template>
-                    </StatWithBreakdown>
-                    <p class="m-0">
-                      Daily earnings: {{ assetProps.oldDailyEarnings }} ({{
-                        toUSDCurrency(assetProps.oldDailyEarningsUsd)
-                      }}) -> {{ assetProps.maxDailyEarnings }} ({{ toUSDCurrency(assetProps.maxDailyEarningsUsd) }})
-                      <span class="text-positive" v-if="data.morphoRewardsByChainByAsset[chain]?.[asset]?.usd > 0">
-                        +{{ data.morphoRewardsByChainByAsset[chain][asset].amount }} {{ data.morphoRewards?.token }} ({{
-                          toUSDCurrency(data.morphoRewardsByChainByAsset[chain][asset].usd)
-                        }})</span
-                      >
-                      <span class="text-positive" v-if="data.sparkRewardsByChainByAsset[chain]?.[asset]?.usd > 0">
-                        +{{ data.sparkRewardsByChainByAsset[chain][asset].amount }} {{ data.sparkRewards?.token }} ({{
-                          toUSDCurrency(data.sparkRewardsByChainByAsset[chain][asset].usd)
-                        }})</span
-                      >
-                    </p>
-                    <p class="m-0">APR: {{ assetProps.currentAPR }}% -> {{ assetProps.maxAPR }}%</p>
-                    <StatWithBreakdown
-                      :showBreakdown="
-                        data.users.length > 1 &&
-                        !!data.idleBalancesByChainByAssetByUser[chain] &&
-                        !!data.idleBalancesByChainByAssetByUser[chain][asset]
-                      "
-                    >
-                      Idle: {{ data.idleBalancesByChain[chain]?.[asset]?.amount ?? 0 }} ({{
-                        toUSDCurrency(data.idleBalancesByChain[chain]?.[asset]?.usd ?? 0)
-                      }})
-                      <template #breakdown>
-                        <span class="font-medium block mb-2">Idle {{ asset }} balances on {{ chain }}</span>
-                        <div
-                          v-for="({ amount, usd }, address) in data.idleBalancesByChainByAssetByUser[chain][asset]"
-                          :key="address"
-                          class="flex items-center gap-2"
-                        >
-                          <div>
-                            <span class="mono">{{ address }}</span
-                            >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
-                          </div>
-                        </div>
-                      </template>
-                    </StatWithBreakdown>
+                      <div>
+                        <span class="mono">{{ address }}</span
+                        >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                      </div>
+                    </div>
                   </template>
-                </Card>
-              </template>
+                </StatWithBreakdown>
+                <StatWithBreakdown label="Daily earnings">
+                  {{ assetProps.oldDailyEarnings }} ({{ toUSDCurrency(assetProps.oldDailyEarningsUsd) }}) →
+                  {{ assetProps.maxDailyEarnings }} ({{ toUSDCurrency(assetProps.maxDailyEarningsUsd) }})
+                  <span class="text-positive" v-if="data.morphoRewardsByChainByAsset[chain]?.[asset]?.usd > 0">
+                    +{{ data.morphoRewardsByChainByAsset[chain][asset].amount }} {{ data.morphoRewards?.token }} ({{
+                      toUSDCurrency(data.morphoRewardsByChainByAsset[chain][asset].usd)
+                    }})</span
+                  >
+                  <span class="text-positive" v-if="data.sparkRewardsByChainByAsset[chain]?.[asset]?.usd > 0">
+                    +{{ data.sparkRewardsByChainByAsset[chain][asset].amount }} {{ data.sparkRewards?.token }} ({{
+                      toUSDCurrency(data.sparkRewardsByChainByAsset[chain][asset].usd)
+                    }})</span
+                  >
+                </StatWithBreakdown>
+                <StatWithBreakdown label="APR">
+                  {{ assetProps.currentAPR }}% → {{ assetProps.maxAPR }}%
+                </StatWithBreakdown>
+                <StatWithBreakdown
+                  label="Idle"
+                  :showBreakdown="
+                    data.users.length > 1 &&
+                    !!data.idleBalancesByChainByAssetByUser[chain] &&
+                    !!data.idleBalancesByChainByAssetByUser[chain][asset]
+                  "
+                >
+                  {{ data.idleBalancesByChain[chain]?.[asset]?.amount ?? 0 }} ({{
+                    toUSDCurrency(data.idleBalancesByChain[chain]?.[asset]?.usd ?? 0)
+                  }})
+                  <template #breakdown>
+                    <span class="font-medium block mb-2">Idle {{ asset }} balances on {{ chain }}</span>
+                    <div
+                      v-for="({ amount, usd }, address) in data.idleBalancesByChainByAssetByUser[chain][asset]"
+                      :key="address"
+                      class="flex items-center gap-2"
+                    >
+                      <div>
+                        <span class="mono">{{ address }}</span
+                        >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                      </div>
+                    </div>
+                  </template>
+                </StatWithBreakdown>
+              </div>
             </Panel>
           </template>
         </Card>
-      </template>
-    </div>
-  </Panel>
+      </div>
+    </Panel>
 
-  <Card class="card-block">
-    <template #subtitle v-if="data">
-      <div class="filter-bar">
-        <div style="text-align: left">
-          <div class="filter-label">
-            <label>My deposits</label>
-          </div>
+    <section class="pools">
+      <div class="toolbar">
+        <label class="toolbar-group">
+          <span class="toolbar-label">My deposits</span>
           <ToggleSwitch v-model="onlyMyDeposits" />
-        </div>
-        <div>
-          <div class="filter-label">
-            <label>Select chains</label>
-          </div>
-          <div>
-            <span v-for="chain in data.poolChains" :key="chain" @click="toggleChainSelected(chain)">
-              <Image
-                :src="chainImgSrc(chain)"
-                :alt="chain"
-                width="30px"
-                class="filter-icon"
-                :style="{ opacity: selectedChains[chain] ? 1 : 0.1 }"
-              />
-            </span>
-          </div>
-        </div>
-        <div>
-          <div class="filter-label">
-            <label>Select assets</label>
-          </div>
-          <div>
-            <span v-for="asset in data.poolAssets" :key="asset" @click="toggleAssetSelected(asset)">
-              <Image
-                :src="assetImgSrc(asset)"
-                :alt="asset"
-                width="30px"
-                class="filter-icon"
-                :style="{ opacity: selectedAssets[asset] ? 1 : 0.1 }"
-              />
-            </span>
-          </div>
-        </div>
-      </div>
-    </template>
-    <template #content>
-      <div class="card-grid">
-        <template v-if="data" v-for="pool in data.goodPools" :key="pool.borrowable">
-          <Card
-            class="card-pool"
-            v-if="selectedChains[pool.chain] && selectedAssets[pool.asset] && (!onlyMyDeposits || pool.suppliedBN > 0)"
-          >
-            <template #title
-              >{{ !['AAVE', 'MORPHO', 'SPARK', 'REVERT'].includes(pool.platform) ? 'Collateral:' : '' }} {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : ''
-              }}{{ pool.oppositeSymbol }} ({{ pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%' }})</template
+        </label>
+        <div class="toolbar-group">
+          <span class="toolbar-label">Chains</span>
+          <div class="chips">
+            <button
+              v-for="chain in data.poolChains"
+              :key="chain"
+              type="button"
+              class="chip"
+              :class="{ off: !selectedChains[chain] }"
+              :aria-pressed="!!selectedChains[chain]"
+              :title="chain"
+              @click="toggleChainSelected(chain)"
             >
-            <template #subtitle>
-              <a target="_blank" rel="noopener" :href="linkToExplorer(pool)" class="mono">{{ pool.borrowable }}</a>
-            </template>
-            <template #content>
-              <StatWithBreakdown
-                :showBreakdown="
-                  data.users.length > 1 &&
-                  !!data.suppliedByChainByBorrowableByUser[pool.chain] &&
-                  !!data.suppliedByChainByBorrowableByUser[pool.chain][pool.borrowable]
-                "
-              >
-                Supplied: {{ pool.supplied }} ({{ toUSDCurrency(pool.suppliedUsd) }})
-                <template #breakdown>
-                  <div
-                    v-for="({ amount, usd }, address) in data.suppliedByChainByBorrowableByUser[pool.chain][
-                      pool.borrowable
-                    ]"
-                    :key="address"
-                    class="flex items-center gap-2"
-                  >
-                    <div>
-                      <span class="mono">{{ address }}</span
-                      >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
-                    </div>
-                  </div>
-                </template>
-              </StatWithBreakdown>
-              <p class="m-0">
-                Daily earnings: {{ pool.earningsOld }} ({{ toUSDCurrency(pool.earningsOldUsd) }}) ->
-                {{ pool.earningsNew }} ({{ toUSDCurrency(pool.earningsNewUsd) }})
-                <span class="text-positive" v-if="pool.stakingDailyEarnings > 0">
-                  +{{ pool.stakingDailyEarnings }} {{ pool.stakingRewardAsset }} ({{
-                    toUSDCurrency(pool.stakingDailyEarningsUsd)
-                  }})</span
-                >
-              </p>
-              <p class="m-0">
-                APR: {{ pool.aprOld }}% -> {{ pool.aprNew }}%
-                <span class="text-positive" v-if="pool.stakingAPR > 0">
-                  +{{ pool.stakingAPR }}% ({{ pool.stakingRewardAsset }})</span
-                >
-                <label
-                  v-if="
-                    ((data.cumulativeValuesByAsset[pool.asset] &&
-                      data.cumulativeValuesByAsset[pool.asset].newUserSupplied > 0) ||
-                      (data.idleBalancesByAsset[pool.asset] && data.idleBalancesByAsset[pool.asset].amount > 0)) &&
-                    pool.aprNew + pool.stakingAPR > data.cumulativeValuesByAsset[pool.asset].maxAPR
-                  "
-                  >🔥</label
-                >
-              </p>
-              <p class="m-0">Utilization: {{ pool.utilization }}% / {{ pool.kink }}%</p>
-              <StatWithBreakdown
-                v-if="pool.availableToDeposit > 0"
-                :showBreakdown="
-                  pool.availableToDepositUsd > 10 &&
-                  !!data.idleBalancesByChain[pool.chain]?.[pool.asset] &&
-                  data.idleBalancesByChain[pool.chain]?.[pool.asset]?.usd > 10
-                "
-              >
-                Capacity: {{ formatCompact(pool.availableToDeposit) }} ({{ toUSDCompact(pool.availableToDepositUsd) }})
-                <label v-if="pool.availableToDepositUsd > 1_000">👀</label>
-                <template #breakdown>
-                  <div
-                    v-for="({ amount, usd }, address) in data.idleBalancesByChainByAssetByUser?.[pool.chain]?.[
-                      pool.asset
-                    ]"
-                    :key="address"
-                    class="flex items-center gap-2"
-                  >
-                    <div>
-                      <span class="mono">{{ address }}</span
-                      >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
-                    </div>
-                  </div>
-                </template>
-              </StatWithBreakdown>
-              <p class="m-0">TVL: {{ formatCompact(pool.tvl) }} ({{ toUSDCompact(pool.tvlUsd) }})</p>
-            </template>
-            <template #footer>
-              <div class="flex justify-center items-center">
-                <Button
-                  as="a"
-                  label="Go to pool"
-                  severity="secondary"
-                  outlined
-                  class="w-full"
-                  :href="linkToPool(pool)"
-                  target="_blank"
-                  rel="noopener"
-                />
-                <Button
-                  v-if="hasEthereum && pool.earningsNewUsd > pool.earningsOldUsd"
-                  @click="handleSyncOrConnect(pool)"
-                  :label="syncButtonLabel(pool)"
-                  class="w-full"
-                />
-              </div>
-              <template v-if="isImpermaxOrTarot(pool) && hasEthereum">
-                <div class="flex gap-2" style="margin-top: 0.5rem">
-                  <Button
-                    size="small"
-                    :severity="poolAction[pool.borrowable] === 'deposit' ? 'primary' : 'secondary'"
-                    outlined
-                    label="Deposit"
-                    @click="togglePoolAction(pool, 'deposit')"
-                  />
-                  <Button
-                    size="small"
-                    :severity="poolAction[pool.borrowable] === 'withdraw' ? 'primary' : 'secondary'"
-                    outlined
-                    label="Withdraw"
-                    @click="togglePoolAction(pool, 'withdraw')"
-                  />
-                </div>
-                <template v-if="poolAction[pool.borrowable]">
-                  <div class="pool-action-form">
-                    <InputText
-                      v-model="poolAmountInput[pool.borrowable]"
-                      type="number"
-                      :placeholder="pool.asset"
-                      size="small"
-                    />
-                    <Button size="small" severity="secondary" label="Max" @click="fillMax(pool)" />
-                  </div>
-                  <Button
-                    v-if="!wallet"
-                    size="small"
-                    class="w-full"
-                    style="margin-top: 0.5rem"
-                    label="Connect wallet"
-                    @click="ensureCorrectChain(pool)"
-                  />
-                  <Button
-                    v-else-if="walletChain !== chainIdByChain[pool.chain as Chains]"
-                    size="small"
-                    class="w-full"
-                    style="margin-top: 0.5rem"
-                    :label="'Switch to ' + pool.chain"
-                    @click="ensureCorrectChain(pool)"
-                  />
-                  <Button
-                    v-else
-                    size="small"
-                    class="w-full"
-                    style="margin-top: 0.5rem"
-                    :label="poolAction[pool.borrowable] === 'deposit' ? 'Confirm deposit' : 'Confirm withdraw'"
-                    :disabled="!isAmountValid(pool)"
-                    @click="poolAction[pool.borrowable] === 'deposit' ? handleDeposit(pool) : handleRedeem(pool)"
-                  />
-                  <div v-if="poolTxStatus[pool.borrowable]" class="pool-tx-status">
-                    {{ poolTxStatus[pool.borrowable] }}
-                  </div>
-                </template>
-              </template>
-              <div class="pool-icon-bar">
-                <div class="pool-icon-bar-left">
-                  <Image :src="chainImgSrc(pool.chain)" :alt="pool.chain" width="25px" />
-                  <Image :src="platformImgSrc(pool.platform)" :alt="pool.platform" width="25px" />
-                </div>
-                <Image :src="assetImgSrc(pool.asset)" :alt="pool.asset" width="25px" />
-              </div>
-            </template>
-          </Card>
-        </template>
+              <img :src="chainImgSrc(chain)" :alt="chain" />
+            </button>
+          </div>
+        </div>
+        <div class="toolbar-group">
+          <span class="toolbar-label">Assets</span>
+          <div class="chips">
+            <button
+              v-for="asset in data.poolAssets"
+              :key="asset"
+              type="button"
+              class="chip"
+              :class="{ off: !selectedAssets[asset] }"
+              :aria-pressed="!!selectedAssets[asset]"
+              :title="asset"
+              @click="toggleAssetSelected(asset)"
+            >
+              <img :src="assetImgSrc(asset)" :alt="asset" />
+            </button>
+          </div>
+        </div>
+        <span class="toolbar-count">{{ visiblePools.length }} pools</span>
       </div>
-    </template>
-  </Card>
+
+      <div class="card-grid">
+        <Card v-for="pool in visiblePools" :key="pool.borrowable" class="card-pool">
+          <template #title>
+            <div class="pool-head">
+              <div class="pool-icons">
+                <img :src="chainImgSrc(pool.chain)" :alt="pool.chain" :title="pool.chain" />
+                <img :src="platformImgSrc(pool.platform)" :alt="pool.platform" :title="pool.platform" />
+                <img :src="assetImgSrc(pool.asset)" :alt="pool.asset" :title="pool.asset" />
+              </div>
+              <span class="pool-tag">{{ pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%' }}</span>
+            </div>
+            <div class="pool-name">
+              <span v-if="!['AAVE', 'MORPHO', 'SPARK', 'REVERT'].includes(pool.platform)" class="pool-kind"
+                >Collateral</span
+              >
+              {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : '' }}{{ pool.oppositeSymbol }}
+            </div>
+          </template>
+          <template #subtitle>
+            <a target="_blank" rel="noopener" :href="linkToExplorer(pool)" class="mono">{{ pool.borrowable }}</a>
+          </template>
+          <template #content>
+            <div class="pool-apr">
+              <span class="pool-apr-value">{{ pool.aprOld }}% → {{ pool.aprNew }}%</span>
+              <span
+                v-if="
+                  data.cumulativeValuesByAsset[pool.asset] &&
+                  (data.cumulativeValuesByAsset[pool.asset].newUserSupplied > 0 ||
+                    data.idleBalancesByAsset[pool.asset]?.amount > 0) &&
+                  pool.aprNew + pool.stakingAPR > data.cumulativeValuesByAsset[pool.asset].maxAPR
+                "
+                title="Better than your current APR for this asset"
+                >🔥</span
+              >
+              <span class="text-positive" v-if="pool.stakingAPR > 0"
+                >+{{ pool.stakingAPR }}% ({{ pool.stakingRewardAsset }})</span
+              >
+            </div>
+            <StatWithBreakdown
+              label="Supplied"
+              :showBreakdown="
+                data.users.length > 1 &&
+                !!data.suppliedByChainByBorrowableByUser[pool.chain] &&
+                !!data.suppliedByChainByBorrowableByUser[pool.chain][pool.borrowable]
+              "
+            >
+              {{ pool.supplied }} ({{ toUSDCurrency(pool.suppliedUsd) }})
+              <template #breakdown>
+                <div
+                  v-for="({ amount, usd }, address) in data.suppliedByChainByBorrowableByUser[pool.chain][
+                    pool.borrowable
+                  ]"
+                  :key="address"
+                  class="flex items-center gap-2"
+                >
+                  <div>
+                    <span class="mono">{{ address }}</span
+                    >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                  </div>
+                </div>
+              </template>
+            </StatWithBreakdown>
+            <StatWithBreakdown label="Daily earnings">
+              {{ pool.earningsOld }} ({{ toUSDCurrency(pool.earningsOldUsd) }}) → {{ pool.earningsNew }} ({{
+                toUSDCurrency(pool.earningsNewUsd)
+              }})
+              <span class="text-positive" v-if="pool.stakingDailyEarnings > 0">
+                +{{ pool.stakingDailyEarnings }} {{ pool.stakingRewardAsset }} ({{
+                  toUSDCurrency(pool.stakingDailyEarningsUsd)
+                }})</span
+              >
+            </StatWithBreakdown>
+            <StatWithBreakdown label="Utilization">{{ pool.utilization }}% / {{ pool.kink }}%</StatWithBreakdown>
+            <div class="util-bar" aria-hidden="true">
+              <span
+                :class="{ over: pool.utilization > pool.kink }"
+                :style="{ width: Math.min(pool.utilization, 100) + '%' }"
+              />
+              <i :style="{ left: Math.min(pool.kink, 100) + '%' }" />
+            </div>
+            <StatWithBreakdown
+              v-if="pool.availableToDeposit > 0"
+              label="Capacity"
+              :showBreakdown="
+                pool.availableToDepositUsd > 10 &&
+                !!data.idleBalancesByChain[pool.chain]?.[pool.asset] &&
+                data.idleBalancesByChain[pool.chain]?.[pool.asset]?.usd > 10
+              "
+            >
+              {{ formatCompact(pool.availableToDeposit) }} ({{ toUSDCompact(pool.availableToDepositUsd) }})
+              <span v-if="pool.availableToDepositUsd > 1_000">👀</span>
+              <template #breakdown>
+                <div
+                  v-for="({ amount, usd }, address) in data.idleBalancesByChainByAssetByUser?.[pool.chain]?.[
+                    pool.asset
+                  ]"
+                  :key="address"
+                  class="flex items-center gap-2"
+                >
+                  <div>
+                    <span class="mono">{{ address }}</span
+                    >: <span>{{ amount }} ({{ toUSDCurrency(usd) }})</span>
+                  </div>
+                </div>
+              </template>
+            </StatWithBreakdown>
+            <StatWithBreakdown label="TVL"
+              >{{ formatCompact(pool.tvl) }} ({{ toUSDCompact(pool.tvlUsd) }})</StatWithBreakdown
+            >
+          </template>
+          <template #footer>
+            <div class="pool-actions">
+              <Button
+                as="a"
+                label="Go to pool"
+                severity="secondary"
+                outlined
+                :href="linkToPool(pool)"
+                target="_blank"
+                rel="noopener"
+              />
+              <Button
+                v-if="hasEthereum && pool.earningsNewUsd > pool.earningsOldUsd"
+                @click="handleSyncOrConnect(pool)"
+                :label="syncButtonLabel(pool)"
+              />
+            </div>
+            <template v-if="isImpermaxOrTarot(pool) && hasEthereum">
+              <div class="pool-actions">
+                <Button
+                  size="small"
+                  :severity="poolAction[pool.borrowable] === 'deposit' ? 'primary' : 'secondary'"
+                  outlined
+                  label="Deposit"
+                  @click="togglePoolAction(pool, 'deposit')"
+                />
+                <Button
+                  size="small"
+                  :severity="poolAction[pool.borrowable] === 'withdraw' ? 'primary' : 'secondary'"
+                  outlined
+                  label="Withdraw"
+                  @click="togglePoolAction(pool, 'withdraw')"
+                />
+              </div>
+              <template v-if="poolAction[pool.borrowable]">
+                <div class="pool-action-form">
+                  <InputText
+                    v-model="poolAmountInput[pool.borrowable]"
+                    type="number"
+                    :placeholder="pool.asset"
+                    size="small"
+                  />
+                  <Button size="small" severity="secondary" label="Max" @click="fillMax(pool)" />
+                </div>
+                <Button
+                  v-if="!wallet"
+                  size="small"
+                  class="w-full"
+                  label="Connect wallet"
+                  @click="ensureCorrectChain(pool)"
+                />
+                <Button
+                  v-else-if="walletChain !== chainIdByChain[pool.chain as Chains]"
+                  size="small"
+                  class="w-full"
+                  :label="'Switch to ' + pool.chain"
+                  @click="ensureCorrectChain(pool)"
+                />
+                <Button
+                  v-else
+                  size="small"
+                  class="w-full"
+                  :label="poolAction[pool.borrowable] === 'deposit' ? 'Confirm deposit' : 'Confirm withdraw'"
+                  :disabled="!isAmountValid(pool)"
+                  @click="poolAction[pool.borrowable] === 'deposit' ? handleDeposit(pool) : handleRedeem(pool)"
+                />
+                <div v-if="poolTxStatus[pool.borrowable]" class="pool-tx-status">
+                  {{ poolTxStatus[pool.borrowable] }}
+                </div>
+              </template>
+            </template>
+          </template>
+        </Card>
+      </div>
+      <p v-if="!visiblePools.length" class="empty">No pools match the filters</p>
+    </section>
+  </template>
 </template>
 
 <style scoped>
+.page-header {
+  margin-bottom: 1.25rem;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* === Address input === */
+.address-card,
+.card-stat,
+.card-pool {
+  border: 1px solid var(--p-content-border-color);
+  box-shadow: none;
+}
+
 .address-card {
-  margin: 0 1rem;
+  margin-bottom: 1rem;
+}
+
+.address-row {
+  display: flex;
+  gap: 0.75rem;
 }
 
 .address-input-wrapper {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .address-input {
-  font-family: monospace;
+  width: 100%;
+  font-family: var(--font-mono);
   letter-spacing: 0.02em;
+}
+
+.address-input-wrapper:has(.example-link) .address-input {
+  padding-right: 11rem;
 }
 
 .example-link {
   position: absolute;
-  right: 12px;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: var(--p-primary-color, #6366f1);
+  color: var(--p-primary-color);
   cursor: pointer;
+  font: inherit;
   font-size: 0.85rem;
-  opacity: 0.8;
-  transition: opacity 0.2s;
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .example-link:hover {
-  opacity: 1;
-  background: rgba(99, 102, 241, 0.08);
+  background: var(--p-primary-50, rgba(16, 185, 129, 0.08));
 }
 
-.toggleable-area {
-  margin: 1rem;
+.fetch-button {
+  flex-shrink: 0;
 }
 
-.card-block {
-  margin: 1rem;
+.fetch-status {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
+}
+
+/* === Sections === */
+.section {
+  margin-bottom: 1rem;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 0.75rem;
+}
+
+.kpi {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 12px;
+}
+
+.kpi-label,
+.toolbar-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--p-text-muted-color);
+}
+
+.kpi :deep(.stat) {
+  padding: 0.25rem 0 0;
+}
+
+.kpi :deep(.stat-value) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.rewards {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
 }
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 1rem;
-  padding: 0.75rem;
 }
 
-.card-pool,
-.card-chain,
-.card-asset {
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+.card-grid > * {
+  min-width: 0;
+}
+
+/* === Cards === */
+.card-stat,
+.card-pool {
   transition:
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.card-pool:hover,
-.card-chain:hover,
-.card-asset:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+.card-stat:hover,
+.card-pool:hover {
+  border-color: color-mix(in srgb, var(--p-primary-color) 45%, var(--p-content-border-color));
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.25);
 }
 
-/* Make card body flex-column so footer sticks to bottom */
+.card-stat :deep(.p-card-body),
 .card-pool :deep(.p-card-body) {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  flex: 1;
 }
 
-/* Content vertical rhythm */
-.card-pool :deep(.p-card-content) p,
-.card-chain :deep(.p-card-content) p {
-  margin: 0.35rem 0;
-  line-height: 1.5;
+.card-stat :deep(.p-card-content),
+.card-pool :deep(.p-card-content) {
+  flex: 1;
 }
 
-/* Truncate long addresses in card subtitles */
+.card-stat :deep(.p-card-subtitle),
 .card-pool :deep(.p-card-subtitle) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
-/* Footer grows to fill remaining height; icon bar sinks to bottom */
-.card-pool :deep(.p-card-footer) {
-  flex: 1;
+.card-pool :deep(.p-card-subtitle) a {
+  color: inherit;
+}
+
+.card-pool :deep(.p-card-subtitle) a:hover {
+  color: var(--p-primary-color);
+}
+
+.card-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
-/* Button row gap */
-.card-pool :deep(.p-card-footer) .flex {
+.icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.card-head.small {
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.card-head.small .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.stat-sub {
+  margin: 0 0 0.25rem;
+  text-align: right;
+  font-size: 0.8125rem;
+  color: var(--p-text-muted-color);
+}
+
+.sub-panel {
+  margin-top: 0.75rem;
+}
+
+.sub-asset + .sub-asset {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--p-content-border-color);
+}
+
+/* === Pools toolbar === */
+.pools {
+  margin-top: 1.5rem;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--p-content-background) 85%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
-/* Footer icon bar spacing — margin-top: auto pins icons to bottom */
-.pool-icon-bar {
-  padding-top: 1rem;
-  border-top: 1px solid rgba(128, 128, 128, 0.12);
-}
-
-.filter-bar {
+.chips {
   display: flex;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1.25rem;
-  align-items: flex-end;
+  gap: 0.25rem;
 }
 
-.filter-label {
-  margin-bottom: 0.4rem;
-  text-align: left;
-  font-size: 0.85rem;
+.chip {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    filter 0.15s ease,
+    transform 0.15s ease;
+}
+
+.chip img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.chip:hover {
+  transform: scale(1.1);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 1px;
+}
+
+.chip.off {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.toolbar-count {
+  margin-left: auto;
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
+}
+
+.empty {
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--p-text-muted-color);
+}
+
+/* === Pool card === */
+.pool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+.pool-icons {
+  display: flex;
+}
+
+.pool-icons img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: var(--p-content-background);
+  box-shadow: 0 0 0 2px var(--p-content-background);
+}
+
+.pool-icons img + img {
+  margin-left: -6px;
+}
+
+.pool-tag {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--p-content-border-color);
+  font-size: 0.75rem;
   font-weight: 600;
-  opacity: 0.7;
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
+}
+
+.pool-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pool-kind {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: var(--p-text-muted-color);
+}
+
+.pool-apr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.pool-apr-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.util-bar {
+  position: relative;
+  height: 4px;
+  margin: 0.125rem 0 0.375rem;
+  border-radius: 2px;
+  background: var(--p-content-border-color);
+}
+
+.util-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--p-primary-color);
+}
+
+.util-bar > span.over {
+  background: var(--p-orange-500);
+}
+
+.util-bar > i {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--p-text-muted-color);
+  transform: translateX(-1px);
+}
+
+.pool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pool-actions > * {
+  flex: 1;
+}
+
+.pool-actions + .pool-actions,
+.card-pool :deep(.p-card-footer) .w-full {
+  margin-top: 0.5rem;
 }
 
 .pool-action-form {
@@ -1103,32 +1401,39 @@ async function handleRedeem(pool: Pool) {
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
+
 .pool-action-form input {
   flex: 1;
+  min-width: 0;
 }
+
 .pool-tx-status {
-  font-size: 0.8rem;
   margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
+  overflow-wrap: anywhere;
 }
-.pool-icon-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: auto;
-}
-.pool-icon-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+
+@media (max-width: 560px) {
+  .address-row {
+    flex-direction: column;
+  }
+
+  .address-input-wrapper:has(.example-link) .address-input {
+    padding-right: 1rem;
+  }
+
+  .example-link {
+    position: static;
+    transform: none;
+    display: block;
+    margin: 0.25rem 0 0 auto;
+  }
 }
 
 @media (max-width: 640px) {
-  .card-grid {
-    grid-template-columns: 1fr;
-  }
-  .filter-bar {
-    flex-direction: column;
-    gap: 1rem;
+  .toolbar {
+    position: static;
   }
 }
 </style>
