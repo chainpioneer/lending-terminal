@@ -92,6 +92,8 @@ export const CHAIN_CONF: {
     spark?: {
       pools: string[]
       rewardsCampaignsUrl: string
+      // pool => adapter with vaultAPY(), for vaults whose yield arrives in lumps (Gnosis sDAI)
+      vaultAPYAdapters?: { [pool: string]: string }
     }
     revert?: {
       vaults: string[]
@@ -370,6 +372,9 @@ export const CHAIN_CONF: {
     spark: {
       pools: ['0xaf204776c7245bF4147c2612BF6e5972Ee483701'],
       rewardsCampaignsUrl: '',
+      vaultAPYAdapters: {
+        '0xaf204776c7245bF4147c2612BF6e5972Ee483701': '0xD499b51fcFc66bd31248ef4b28d656d67E591A94',
+      },
     },
     rpcUrls: [
       'https://gnosis.drpc.org',

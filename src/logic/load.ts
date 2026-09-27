@@ -9,6 +9,7 @@ import compoundBorrowingAbi from '../../abi/CompoundBorrowing.json' assert { typ
 import extraLendingPoolAbi from '../../abi/ExtraLendingPool.json' assert { type: 'json' }
 import morphoPoolAbi from '../../abi/MorphoPool.json' assert { type: 'json' }
 import revertVaultAbi from '../../abi/revertV3Vault.json' assert { type: 'json' }
+import savingsXDaiAdapterAbi from '../../abi/SavingsXDaiAdapter.json' assert { type: 'json' }
 import sparkVaultAbi from '../../abi/SparkVault.json' assert { type: 'json' }
 import stakingPoolAbi from '../../abi/stakingPool.json' assert { type: 'json' }
 import vaultAbi from '../../abi/vault.json' assert { type: 'json' }
@@ -169,6 +170,10 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
         users.forEach((addr) => {
           calls1.push(pool.balanceOf(addr))
         })
+        const adapter = conf.spark!.vaultAPYAdapters?.[address]
+        if (adapter) {
+          calls1.push(new Contract(adapter, savingsXDaiAdapterAbi).vaultAPY())
+        }
       })
     }
     if (conf.revert) {

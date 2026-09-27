@@ -13,6 +13,7 @@ type ChainConf = {
   spark?: {
     pools: string[]
     rewardsCampaignsUrl: string
+    vaultAPYAdapters?: { [pool: string]: string }
   }
 }
 
@@ -61,6 +62,11 @@ export function parseSparkCall1Data(
         addDeposit(ctx.sparkPoolInfo[chain][pool].aggregatedDeposit, deposit.bn, div, asset)
       }
     })
+
+    if (conf.spark!.vaultAPYAdapters?.[pool]) {
+      // vaultAPY() is 1e18 = 100%
+      ctx.sparkPoolInfo[chain][pool].apr = Number(BigInt(call1Data[callIndex++]) / 10n ** 14n) / 100
+    }
   })
 
   return callIndex
@@ -90,18 +96,22 @@ export async function processSparkPools(
     const oldTotalAssets = call3Data[cursor++]
     const oldTotalSupply = call3Data[cursor++]
 
-    const timeDelta = timestamp ? blockTimestamp - timestamp : (currentBlockNumber - pastBlockNumber) * 2
-    const currExchangeRate =
-      poolInfo.totalSupply > 0n ? (poolInfo.totalAssets * ONE * ONE) / poolInfo.totalSupply : ONE * ONE
-    const oldExchangeRate = oldTotalSupply > 0n ? (oldTotalAssets * ONE * ONE) / oldTotalSupply : ONE * ONE
+    // Gnosis sDAI only grows when bridged interest is claimed into it, so a short-window
+    // exchange rate change swings wildly; such pools take the APR from the adapter instead
+    if (!conf.spark!.vaultAPYAdapters?.[pool]) {
+      const timeDelta = timestamp ? blockTimestamp - timestamp : (currentBlockNumber - pastBlockNumber) * 2
+      const currExchangeRate =
+        poolInfo.totalSupply > 0n ? (poolInfo.totalAssets * ONE * ONE) / poolInfo.totalSupply : ONE * ONE
+      const oldExchangeRate = oldTotalSupply > 0n ? (oldTotalAssets * ONE * ONE) / oldTotalSupply : ONE * ONE
 
-    poolInfo.apr =
-      oldExchangeRate > 0n
-        ? Number(
-            ((currExchangeRate - oldExchangeRate) * 365n * 24n * 3600n * 10000n) /
-              (BigInt(timeDelta) * oldExchangeRate),
-          ) / 100
-        : 0
+      poolInfo.apr =
+        oldExchangeRate > 0n
+          ? Number(
+              ((currExchangeRate - oldExchangeRate) * 365n * 24n * 3600n * 10000n) /
+                (BigInt(timeDelta) * oldExchangeRate),
+            ) / 100
+          : 0
+    }
 
     const totalDeposited = Number(poolInfo.aggregatedDeposit.bn)
     const earnings = (totalDeposited * poolInfo.apr) / 100 / 365
