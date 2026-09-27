@@ -48,6 +48,7 @@ const collapsed = ref({
 
 const selectedChains = ref<{ [chain: string]: boolean }>({})
 const selectedAssets = ref<{ [asset: string]: boolean }>({})
+const selectedPlatforms = ref<{ [platform: string]: boolean }>({})
 
 const onlyMyDeposits = ref(false)
 
@@ -62,6 +63,7 @@ const visiblePools = computed<Pool[]>(() =>
     (pool: Pool) =>
       selectedChains.value[pool.chain] &&
       selectedAssets.value[pool.asset] &&
+      selectedPlatforms.value[pool.platform] &&
       (!onlyMyDeposits.value || pool.suppliedBN > 0),
   ),
 )
@@ -129,6 +131,9 @@ const toggleChainSelected = (chain: string) => toggleFilterSelection(chain, sele
 
 const toggleAssetSelected = (asset: string) => toggleFilterSelection(asset, selectedAssets, data.value.poolAssets)
 
+const togglePlatformSelected = (platform: string) =>
+  toggleFilterSelection(platform, selectedPlatforms, data.value.poolPlatforms)
+
 async function fetchData() {
   fetchingData.value = true
   data.value = undefined
@@ -146,6 +151,10 @@ async function fetchData() {
   })
   data.value.poolAssets.forEach((asset: string) => {
     selectedAssets.value[asset] = true
+  })
+  selectedPlatforms.value = {}
+  data.value.poolPlatforms.forEach((platform: string) => {
+    selectedPlatforms.value[platform] = true
   })
   fetchingData.value = false
 }
@@ -799,7 +808,24 @@ async function handleRedeem(pool: Pool) {
             </button>
           </div>
         </div>
-        <span class="toolbar-count">{{ visiblePools.length }} pools</span>
+        <div class="toolbar-group">
+          <span class="toolbar-label">Protocols</span>
+          <div class="chips">
+            <button
+              v-for="platform in data.poolPlatforms"
+              :key="platform"
+              type="button"
+              class="chip"
+              :class="{ off: !selectedPlatforms[platform] }"
+              :aria-pressed="!!selectedPlatforms[platform]"
+              :title="platform"
+              @click="togglePlatformSelected(platform)"
+            >
+              <img :src="platformImgSrc(platform)" :alt="platform" />
+            </button>
+          </div>
+        </div>
+        <span class="toolbar-count">{{ visiblePools.length }} {{ visiblePools.length === 1 ? 'pool' : 'pools' }}</span>
       </div>
 
       <div class="card-grid">

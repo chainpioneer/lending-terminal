@@ -847,6 +847,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
   const poolChains: { [chain: string]: true } = {}
   const poolAssets: { [chain: string]: true } = {}
+  const poolPlatforms: { [platform: string]: true } = {}
 
   const goodPools = ctx.pools
     .filter((x) => {
@@ -858,6 +859,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
       if (good) {
         poolChains[x.chain] = true
         poolAssets[x.asset] = true
+        poolPlatforms[x.platform] = true
       }
       return good
     })
@@ -921,6 +923,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     chainAggregatedStats: ctx.chainAggregatedStats,
     poolAssets: Object.keys(poolAssets),
     poolChains: Object.keys(poolChains),
+    poolPlatforms: Object.keys(poolPlatforms),
     usd: usd.toFixed(2),
     users,
     compoundBorrowingInfo: ctx.compoundBorrowingInfo,
