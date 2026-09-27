@@ -814,7 +814,7 @@ async function handleRedeem(pool: Pool) {
               <span class="pool-tag">{{ pool.vaultAPR === '' ? pool.platform : pool.vaultAPR + '%' }}</span>
             </div>
             <div class="pool-name">
-              <span v-if="!['AAVE', 'MORPHO', 'SPARK', 'REVERT'].includes(pool.platform)" class="pool-kind"
+              <span v-if="!['AAVE', 'MORPHO', 'SPARK', 'REVERT', 'EXTRA'].includes(pool.platform)" class="pool-kind"
                 >Collateral</span
               >
               {{ pool.asset }}{{ pool.oppositeSymbol ? '/' : '' }}{{ pool.oppositeSymbol }}

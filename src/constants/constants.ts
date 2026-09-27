@@ -96,6 +96,10 @@ export const CHAIN_CONF: {
     revert?: {
       vaults: string[]
     }
+    extra?: {
+      lendingPool: string
+      reserveIds: number[]
+    }
   }
 } = {
   [Chains.MAINNET]: {
@@ -175,6 +179,10 @@ export const CHAIN_CONF: {
     ],
     revert: {
       vaults: ['0x36AEAe0E411a1E28372e0d66f02E57744EbE7599'],
+    },
+    extra: {
+      lendingPool: '0xBB505c54D71E9e599cB8435b4F0cEEc05fC71cbD',
+      reserveIds: [25], // USDC
     },
     staking: {
       // '0x74705C3C2E01891044f8654445DcCf6e28b51758': {

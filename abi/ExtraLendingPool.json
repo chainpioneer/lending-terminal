@@ -1,0 +1,232 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "reserveIdArr",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getPositionStatus",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "reserveId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "eTokenStaked",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "eTokenUnStaked",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "liquidity",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ILendingPool.PositionStatus[]",
+        "name": "statusArr",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "reserveIdArr",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "getReserveStatus",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "reserveId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "underlyingTokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "eTokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "stakingAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalLiquidity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalBorrows",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "exchangeRate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "borrowingRate",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ILendingPool.ReserveStatus[]",
+        "name": "statusArr",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "reserves",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "borrowingIndex",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentBorrowingRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalBorrows",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "underlyingTokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "eTokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "stakingAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "reserveCapacity",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "utilizationA",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "borrowingRateA",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "utilizationB",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "borrowingRateB",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "maxBorrowingRate",
+            "type": "uint128"
+          }
+        ],
+        "internalType": "struct DataTypes.InterestRateConfig",
+        "name": "borrowingRateConfig",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint128",
+        "name": "lastUpdateTimestamp",
+        "type": "uint128"
+      },
+      {
+        "internalType": "uint16",
+        "name": "reserveFeeRate",
+        "type": "uint16"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "frozen",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "borrowingEnabled",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct DataTypes.Flags",
+        "name": "flags",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

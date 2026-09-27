@@ -89,6 +89,8 @@ export function platformImgSrc(platform: string) {
       return 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png'
     case 'REVERT':
       return 'https://icons.llama.fi/revert-compoundor.png'
+    case 'EXTRA':
+      return 'https://icons.llamao.fi/icons/protocols/extra-finance?w=48&h=48'
     default:
       return 'https://static.thenounproject.com/png/1166209-200.png'
   }
@@ -176,6 +178,8 @@ export function linkToPool(pool: { vault: string; platform: string; chain: Chain
       return 'https://app.spark.fi/savings'
     case 'REVERT':
       return 'https://revert.finance/#/lending'
+    case 'EXTRA':
+      return 'https://app.extrafi.io/lend'
     default:
       throw new Error(`Unknown platform ${pool.platform}`)
   }

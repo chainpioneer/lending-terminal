@@ -6,6 +6,7 @@ import aTokenAbi from '../../abi/AToken.json' assert { type: 'json' }
 import borrowableAbi from '../../abi/borrowable.json' assert { type: 'json' }
 import collateralAbi from '../../abi/collateral.json' assert { type: 'json' }
 import compoundBorrowingAbi from '../../abi/CompoundBorrowing.json' assert { type: 'json' }
+import extraLendingPoolAbi from '../../abi/ExtraLendingPool.json' assert { type: 'json' }
 import morphoPoolAbi from '../../abi/MorphoPool.json' assert { type: 'json' }
 import revertVaultAbi from '../../abi/revertV3Vault.json' assert { type: 'json' }
 import sparkVaultAbi from '../../abi/SparkVault.json' assert { type: 'json' }
@@ -32,6 +33,7 @@ import { formatStats, sortByUserDeposit, sortByUserSimple } from './helpers'
 import { createLoadContext } from './loadContext'
 import { buildAavePools, processAaveBalances } from './processAave'
 import { buildCompoundPositions, parseCompoundCall2Data, processCompoundCollateral } from './processCompound'
+import { processExtraPools } from './processExtra'
 import { processBorrowables, processCollateralPositions } from './processImpermax'
 import { parseMorphoCall1Data, processMorphoRewardsAndPools } from './processMorpho'
 import { parseRevertCall1Data, processRevertPools } from './processRevert'
@@ -179,6 +181,13 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
           calls1.push(vault.balanceOf(addr))
         })
       })
+    }
+    if (conf.extra) {
+      const { lendingPool, reserveIds } = conf.extra
+      const pool = new Contract(lendingPool, extraLendingPoolAbi)
+      calls1.push(pool.getReserveStatus(reserveIds))
+      reserveIds.forEach((id) => calls1.push(pool.reserves(id)))
+      users.forEach((addr) => calls1.push(pool.getPositionStatus(reserveIds, addr)))
     }
     console.log('calling call1', chain)
 
@@ -361,6 +370,11 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     // === Parse revert call1 data ===
     if (conf.revert) {
       nextCallIndex = parseRevertCall1Data(ctx, chain, conf, users, call1Data, calls1, calls3, nextCallIndex)
+    }
+
+    // === Extra Finance pools (APR from the rate model, no historical state needed) ===
+    if (conf.extra) {
+      processExtraPools(ctx, chain, conf, users, call1Data, nextCallIndex)
     }
 
     console.log('calling call3', chain)
