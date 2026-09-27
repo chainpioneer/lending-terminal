@@ -250,11 +250,12 @@ export const CHAIN_CONF: {
       rewardsCampaignsUrl: 'https://spark-api-proxy.chainpioneer.workers.dev/api/v1/rewards/campaigns/',
     },
     rpcUrls: [
+      'https://avalanche-mainnet.gateway.tenderly.co',
+      'https://avalanche-c-chain-rpc.publicnode.com',
+      'https://api.avax.network/ext/bc/C/rpc',
+      'https://1rpc.io/avax/c',
       'https://avalanche.drpc.org',
       'https://0xrpc.io/avax',
-      'https://1rpc.io/avax/c',
-      'https://api.avax.network/ext/bc/C/rpc',
-      'https://avalanche-mainnet.gateway.tenderly.co',
     ],
     chainId: 43114,
     assets: {
@@ -315,9 +316,10 @@ export const CHAIN_CONF: {
         'https://api.merkl.xyz/v4/opportunities/campaigns?chainId=480&status=LIVE&types=MORPHOVAULT,MORPHOBORROW',
     },
     rpcUrls: [
+      'https://worldchain-mainnet.gateway.tenderly.co',
+      'https://worldchain-mainnet.g.alchemy.com/public',
       'https://worldchain.drpc.org',
       'https://480.rpc.thirdweb.com',
-      'https://worldchain-mainnet.gateway.tenderly.co',
       'https://sparkling-autumn-dinghy.worldchain-mainnet.quiknode.pro',
     ],
     chainId: 480,
@@ -337,6 +339,9 @@ export const CHAIN_CONF: {
       vaults: ['0x74e6afef5705beb126c6d3bf46f8fad8f3e07825'],
     },
     rpcUrls: [
+      'https://arbitrum.gateway.tenderly.co',
+      'https://arb1.arbitrum.io/rpc',
+      'https://arbitrum-one.public.blastapi.io',
       'https://arbitrum.drpc.org',
       'https://0xrpc.io/arb',
       'https://1rpc.io/arb',
