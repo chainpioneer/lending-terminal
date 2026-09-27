@@ -150,18 +150,7 @@ async function handleSyncOrConnect(pool: Pool) {
     })
     walletChain.value = ethereum.chainId
   } else {
-    ethereum.request({
-      method: 'eth_sendTransaction',
-      params: [
-        {
-          from: wallet.value,
-          to: pool.borrowable,
-          data: '0xfff6cae9',
-          value: `0x`,
-          chainId: chainIdByChain[pool.chain as Chains],
-        },
-      ],
-    })
+    await sendTx({ from: wallet.value, to: pool.borrowable, data: '0xfff6cae9' })
   }
 }
 
