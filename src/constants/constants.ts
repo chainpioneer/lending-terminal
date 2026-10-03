@@ -162,11 +162,11 @@ export const CHAIN_CONF: {
       web3Inst.utils.toChecksumAddress('0x594d04cc12d20a8b48578bd3b9c69b371460bed5'),
       web3Inst.utils.toChecksumAddress('0x1cc240ed506bb7ee062b4916873e934ea1dd2194'),
       web3Inst.utils.toChecksumAddress('0xf2b5ebdd02861392c4aa90838ef4d549362754a4'),
-      web3Inst.utils.toChecksumAddress('0xce34f45b98731e5dae4e0baae37eba63ba07d684'),
+      // web3Inst.utils.toChecksumAddress('0xce34f45b98731e5dae4e0baae37eba63ba07d684'), // toxic
       web3Inst.utils.toChecksumAddress('0xe196398b56175247328c2bf4a9c85497fb02914e'),
       web3Inst.utils.toChecksumAddress('0xa4041988b0dcac29bdb2461b01583218374892f1'),
       web3Inst.utils.toChecksumAddress('0x90f5c47cfb7de8e657ebb174d90e3a4d8d64cdd0'),
-      web3Inst.utils.toChecksumAddress('0x36e474b287532c92c4509efe44d19bb69fa6b423'),
+      // web3Inst.utils.toChecksumAddress('0x36e474b287532c92c4509efe44d19bb69fa6b423'), // toxic
       web3Inst.utils.toChecksumAddress('0x43ef63ae565fcfbbc277a4c634321c634820ad79'),
       web3Inst.utils.toChecksumAddress('0x4edd336d4d51c1ba8439380d973ab5ba5d179b8c'),
       web3Inst.utils.toChecksumAddress('0xd143c1365e74cfffd7ff747af59a557fffed4f0c'),
@@ -290,7 +290,7 @@ export const CHAIN_CONF: {
       // web3Inst.utils.toChecksumAddress('0x2de6f52dbb457dffecf1b51602c991afcdc7f780'), // toxic
       web3Inst.utils.toChecksumAddress('0x13764f3cc643c99cbbc2961e78968ca70b6e7aa9'),
       // web3Inst.utils.toChecksumAddress('0xcedfb59ef6f24d2c05d639d4672c6644f8e49b8a'), // toxic
-      web3Inst.utils.toChecksumAddress('0x5785228ec74209fee27df324d428be92f1244b0e'),
+      // web3Inst.utils.toChecksumAddress('0x5785228ec74209fee27df324d428be92f1244b0e'), // toxic
       // web3Inst.utils.toChecksumAddress('0xc2285af4f918c9bfd364cd7a5c403fba0f201a43'), // toxic
       web3Inst.utils.toChecksumAddress('0x98d4358d95163daf6000ce035dceaf785416ffa4'),
     ],
