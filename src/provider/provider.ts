@@ -3,7 +3,6 @@ import { JsonRpcProvider, Network } from 'ethers'
 import Web3 from 'web3'
 
 import { CHAIN_CONF, Chains } from '../constants/constants'
-import sleep from '../utils/sleep'
 
 export const WEB3_PROVIDERS: { [key: string]: Web3[] } = {}
 Object.entries(CHAIN_CONF).forEach(([chain, { rpcUrls }]) => {
@@ -50,33 +49,34 @@ async function multicallWithTimeout(
   timeout = 15_000,
   from = `0x${'0'.repeat(40)}`,
 ): Promise<any[]> {
-  let errCount = 0
-  let result
-  while (!result) {
+  let lastError: unknown
+  for (let attempt = 0; attempt < maxErrCount[chain]; attempt++) {
     try {
-      result = await Promise.race([
-        ETH_CALL_PROVIDERS[chain][lastProviderIndex[chain]][method](requests, {
-          blockTag: blockNumber,
-          from,
-        }),
-        sleep(timeout),
-      ])
-    } catch (e) {
-      console.log(String(e))
-      errCount++
-      console.log('eth_call failed', errCount)
-      if (errCount > maxErrCount[chain]) {
-        console.log(requests)
-        throw new Error(`eth_call failed ${maxErrCount} times ${e}`, { cause: e })
-      }
-    }
-    if (!result) {
+      const result = await withTimeout(
+        ETH_CALL_PROVIDERS[chain][lastProviderIndex[chain]][method](requests, { blockTag: blockNumber, from }),
+        timeout,
+      )
+      return result
+    } catch (error) {
+      lastError = error
       switchProvider(chain)
-      return multicallWithTimeout(chain, requests, method, blockNumber, timeout)
     }
-    await sleep(1_000 * errCount)
   }
-  return result as any[]
+  throw new Error(`${chain} eth_call failed after ${maxErrCount[chain]} attempts`, { cause: lastError })
+}
+
+async function withTimeout<T>(request: Promise<T>, timeout: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`RPC timeout after ${timeout}ms`)), timeout)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export function callWithTimeout(
@@ -99,26 +99,17 @@ export function tryWithTimeout(
   return multicallWithTimeout(chain, requests, 'tryAll', blockNumber, timeout, from)
 }
 
-export async function web3EthCall(chain: Chains, method: string, params: any[], timeout?: number) {
+export async function web3EthCall(chain: Chains, method: string, params: any[], timeout = 15_000) {
   const providerCount = WEB3_PROVIDERS[chain].length
   for (let i = 0; i < providerCount * 2; i++) {
     const web3: Web3 = WEB3_PROVIDERS[chain][lastProviderIndex[chain]]
 
     try {
-      const result = timeout
-        ? await Promise.race([(web3.eth as any)[method](...params), sleep(timeout)])
-        : await (web3.eth as any)[method](...params)
-
-      if (result === undefined) {
-        // console.log({ method, params, timeout })
-        if (timeout) throw new Error(`timeout ${timeout / 1000}s`)
-        throw new Error(`empty provider response: ${result}`)
-      }
+      const result = await withTimeout<any>((web3.eth as any)[method](...params), timeout)
+      if (result === undefined) throw new Error('Empty provider response')
       return result
     } catch (e) {
-      console.log(e)
-      console.log(`Web3 eth call failed ${method} index ${lastProviderIndex}`)
-      console.log(params)
+      console.log(`${chain} ${method} failed at provider ${lastProviderIndex[chain]}: ${String(e)}`)
       switchProvider(chain)
     }
   }

@@ -93,6 +93,7 @@ npx --yes yarn@1.22.22 lint
 npm run test:aave
 node scripts/check-portfolio.mjs
 node scripts/check-portfolio-rewards.mjs
+node scripts/check-rpc-retries.mjs
 npx --yes yarn@1.22.22 build
 npx --yes yarn@1.22.22 preview
 ```
@@ -101,7 +102,7 @@ Production preview is at `http://localhost:4173/lending-terminal/`. The build us
 
 RPCs, market addresses, token maps and filter thresholds live in [constants.ts](src/constants/constants.ts). No Worker deployment is needed to run the frontend: it uses the configured hosted Spark proxy. Its allowed development origins are `http://localhost:5173` and `http://localhost:4173`; another hostname or port needs a proxy configuration change.
 
-If a fetch hangs, check the browser console/network tab for the failing chain or price API. A failed chain currently prevents the combined result from rendering, and the UI may remain in its loading state. Reload after fixing the endpoint in `CHAIN_CONF`.
+If a fetch hangs, check the browser console/network tab for the failing chain or price API. A failed chain prevents the combined result from rendering. RPC requests time out after 15 seconds per attempt and try each configured provider at most twice; if they all fail, the UI offers another attempt.
 
 ## Adding a protocol
 

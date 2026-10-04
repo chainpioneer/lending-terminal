@@ -40,6 +40,7 @@ import PortfolioShare from './PortfolioShare.vue'
 defineProps<{ msg: string }>()
 
 const fetchingData = ref(false)
+const fetchError = ref('')
 const pendingChains = ref<string[]>([])
 const addresses = ref(localStorage.getItem('userStr') || '')
 const data: any = ref<Awaited<ReturnType<typeof load>>>()
@@ -136,24 +137,30 @@ async function fetchData() {
   const allChains = Object.keys(CHAIN_CONF)
   pendingChains.value = [...allChains]
   const userAddresses = addresses.value
-  data.value = await load(extractAddresses(userAddresses), (chain) => {
-    pendingChains.value = pendingChains.value.filter((c) => c !== chain)
-  })
-  localStorage.setItem('userStr', userAddresses)
-  selectedChains.value = {}
-  selectedAssets.value = {}
-  data.value.poolChains.forEach((ch: string) => {
-    selectedChains.value[ch] = true
-  })
-  data.value.poolAssets.forEach((asset: string) => {
-    selectedAssets.value[asset] = true
-  })
-  selectedPlatforms.value = {}
-  data.value.poolPlatforms.forEach((platform: string) => {
-    selectedPlatforms.value[platform] = true
-  })
-  activeTab.value = 'portfolio'
-  fetchingData.value = false
+  fetchError.value = ''
+  try {
+    data.value = await load(extractAddresses(userAddresses), (chain) => {
+      pendingChains.value = pendingChains.value.filter((c) => c !== chain)
+    })
+    localStorage.setItem('userStr', userAddresses)
+    selectedChains.value = {}
+    selectedAssets.value = {}
+    data.value.poolChains.forEach((ch: string) => {
+      selectedChains.value[ch] = true
+    })
+    data.value.poolAssets.forEach((asset: string) => {
+      selectedAssets.value[asset] = true
+    })
+    selectedPlatforms.value = {}
+    data.value.poolPlatforms.forEach((platform: string) => {
+      selectedPlatforms.value[platform] = true
+    })
+    activeTab.value = 'portfolio'
+  } catch {
+    fetchError.value = 'Could not load all networks. Please try again.'
+  } finally {
+    fetchingData.value = false
+  }
 }
 
 async function handleSyncOrConnect(pool: Pool) {
@@ -359,6 +366,7 @@ async function handleRedeem(pool: Pool) {
           @click="fetchData"
         />
       </div>
+      <p v-if="fetchError" role="alert">{{ fetchError }}</p>
       <p v-if="fetchingData" class="fetch-status">Fetching: {{ pendingChains.join(', ') || 'finalizing...' }}</p>
       <p class="text-secondary">
         Paste EVM addresses and fetch. No wallet connection needed. Only configured markets are tracked.
