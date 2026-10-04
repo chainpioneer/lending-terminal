@@ -17,6 +17,13 @@ export default [
       },
       globals: {
         window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        File: 'readonly',
+        Blob: 'readonly',
+        DOMException: 'readonly',
         localStorage: 'readonly',
         console: 'readonly',
         BigInt: 'readonly',

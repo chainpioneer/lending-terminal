@@ -27,9 +27,75 @@ export enum ASSETS {
   WBTC = 'WBTC',
   AVAX = 'AVAX',
   XDAI = 'XDAI',
+  'DAI' = 'DAI',
+  'LINK' = 'LINK',
+  'AAVE' = 'AAVE',
+  'USDT' = 'USDT',
+  'rETH' = 'rETH',
+  'LUSD' = 'LUSD',
+  'CRV' = 'CRV',
+  'MKR' = 'MKR',
+  'SNX' = 'SNX',
+  'BAL' = 'BAL',
+  'UNI' = 'UNI',
+  'LDO' = 'LDO',
+  'ENS' = 'ENS',
+  '1INCH' = '1INCH',
+  'FRAX' = 'FRAX',
+  'GHO' = 'GHO',
+  'RPL' = 'RPL',
+  'sDAI' = 'sDAI',
+  'STG' = 'STG',
+  'KNC' = 'KNC',
+  'FXS' = 'FXS',
+  'crvUSD' = 'crvUSD',
+  'PYUSD' = 'PYUSD',
+  'weETH' = 'weETH',
+  'osETH' = 'osETH',
+  'USDe' = 'USDe',
+  'ETHx' = 'ETHx',
+  'sUSDe' = 'sUSDe',
+  'tBTC' = 'tBTC',
+  'USDS' = 'USDS',
+  'rsETH' = 'rsETH',
+  'LBTC' = 'LBTC',
+  'eBTC' = 'eBTC',
+  'RLUSD' = 'RLUSD',
+  'PT-eUSDE-29MAY2025' = 'PT-eUSDE-29MAY2025',
+  'PT-sUSDE-31JUL2025' = 'PT-sUSDE-31JUL2025',
+  'USDtb' = 'USDtb',
+  'PT-USDe-31JUL2025' = 'PT-USDe-31JUL2025',
+  'PT-eUSDE-14AUG2025' = 'PT-eUSDE-14AUG2025',
+  'eUSDe' = 'eUSDe',
+  'FBTC' = 'FBTC',
+  'EURC' = 'EURC',
+  'PT-sUSDE-25SEP2025' = 'PT-sUSDE-25SEP2025',
+  'PT-USDe-25SEP2025' = 'PT-USDe-25SEP2025',
+  'tETH' = 'tETH',
+  'ezETH' = 'ezETH',
+  'XAUt' = 'XAUt',
+  'PT-sUSDE-27NOV2025' = 'PT-sUSDE-27NOV2025',
+  'PT-USDe-27NOV2025' = 'PT-USDe-27NOV2025',
+  'PT-USDe-5FEB2026' = 'PT-USDe-5FEB2026',
+  'PT-sUSDE-5FEB2026' = 'PT-sUSDE-5FEB2026',
+  'mUSD' = 'mUSD',
+  'syrupUSDT' = 'syrupUSDT',
+  'USDG' = 'USDG',
+  'PT-USDe-7MAY2026' = 'PT-USDe-7MAY2026',
+  'PT-sUSDE-7MAY2026' = 'PT-sUSDE-7MAY2026',
+  'PT-srUSDe-2APR2026' = 'PT-srUSDe-2APR2026',
+  'BTC.b' = 'BTC.b',
+  'PT-srUSDe-25JUN2026' = 'PT-srUSDe-25JUN2026',
+  'PT-USDG-28MAY2026' = 'PT-USDG-28MAY2026',
+  'PT-srUSDe-22OCT2026' = 'PT-srUSDe-22OCT2026',
+  'wrsETH' = 'wrsETH',
+  'syrupUSDC' = 'syrupUSDC',
+  'sUSD' = 'sUSD',
+  'MAI' = 'MAI',
 }
 
 export function getDiv(asset: ASSETS) {
+  if (assetConf[asset].decimals !== undefined) return 10 ** assetConf[asset].decimals!
   switch (asset) {
     case ASSETS.USDC:
       return 10 ** 6
@@ -41,7 +107,10 @@ export function getDiv(asset: ASSETS) {
   }
 }
 
-export const assetConf: { [asset in ASSETS]: { tokenId: string } } = {
+// New Aave assets use a canonical Aave oracle source, including maturity-specific PTs.
+export const assetConf: {
+  [asset in ASSETS]: { tokenId?: string; decimals?: number; aave?: { chain: Chains; address: string } }
+} = {
   [ASSETS.USDC]: { tokenId: 'usd-coin' },
   [ASSETS.ETH]: { tokenId: 'weth' },
   [ASSETS.wstETH]: { tokenId: 'wrapped-steth' },
@@ -57,6 +126,260 @@ export const assetConf: { [asset in ASSETS]: { tokenId: string } } = {
   [ASSETS.WLD]: { tokenId: 'worldcoin-wld' },
   [ASSETS.AVAX]: { tokenId: 'avalanche-2' },
   [ASSETS.XDAI]: { tokenId: 'xdai' },
+  [ASSETS['DAI']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x6B175474E89094C44Da98b954EedeAC495271d0F' },
+  },
+  [ASSETS['LINK']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x514910771AF9Ca656af840dff83E8264EcF986CA' },
+  },
+  [ASSETS['AAVE']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9' },
+  },
+  [ASSETS['USDT']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' },
+  },
+  [ASSETS['rETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xae78736Cd615f374D3085123A210448E74Fc6393' },
+  },
+  [ASSETS['LUSD']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x5f98805A4E8be255a32880FDeC7F6728C6568bA0' },
+  },
+  [ASSETS['CRV']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xD533a949740bb3306d119CC777fa900bA034cd52' },
+  },
+  [ASSETS['MKR']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2' },
+  },
+  [ASSETS['SNX']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F' },
+  },
+  [ASSETS['BAL']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xba100000625a3754423978a60c9317c58a424e3D' },
+  },
+  [ASSETS['UNI']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984' },
+  },
+  [ASSETS['LDO']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32' },
+  },
+  [ASSETS['ENS']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xC18360217D8F7Ab5e7c516566761Ea12Ce7F9D72' },
+  },
+  [ASSETS['1INCH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x111111111117dC0aa78b770fA6A738034120C302' },
+  },
+  [ASSETS['FRAX']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x853d955aCEf822Db058eb8505911ED77F175b99e' },
+  },
+  [ASSETS['GHO']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f' },
+  },
+  [ASSETS['RPL']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xD33526068D116cE69F19A9ee46F0bd304F21A51f' },
+  },
+  [ASSETS['sDAI']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x83F20F44975D03b1b09e64809B757c47f942BEeA' },
+  },
+  [ASSETS['STG']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6' },
+  },
+  [ASSETS['KNC']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xdeFA4e8a7bcBA345F687a2f1456F5Edd9CE97202' },
+  },
+  [ASSETS['FXS']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0' },
+  },
+  [ASSETS['crvUSD']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E' },
+  },
+  [ASSETS['PYUSD']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8' },
+  },
+  [ASSETS['weETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee' },
+  },
+  [ASSETS['osETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38' },
+  },
+  [ASSETS['USDe']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x4c9EDD5852cd905f086C759E8383e09bff1E68B3' },
+  },
+  [ASSETS['ETHx']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xA35b1B31Ce002FBF2058D22F30f95D405200A15b' },
+  },
+  [ASSETS['sUSDe']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x9D39A5DE30e57443BfF2A8307A4256c8797A3497' },
+  },
+  [ASSETS['tBTC']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x18084fbA666a33d37592fA2633fD49a74DD93a88' },
+  },
+  [ASSETS['USDS']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xdC035D45d973E3EC169d2276DDab16f1e407384F' },
+  },
+  [ASSETS['rsETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7' },
+  },
+  [ASSETS['LBTC']]: {
+    decimals: 8,
+    aave: { chain: Chains.MAINNET, address: '0x8236a87084f8B84306f72007F36F2618A5634494' },
+  },
+  [ASSETS['eBTC']]: {
+    decimals: 8,
+    aave: { chain: Chains.MAINNET, address: '0x657e8C867D8B37dCC18fA4Caead9C45EB088C642' },
+  },
+  [ASSETS['RLUSD']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD' },
+  },
+  [ASSETS['PT-eUSDE-29MAY2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x50D2C7992b802Eef16c04FeADAB310f31866a545' },
+  },
+  [ASSETS['PT-sUSDE-31JUL2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x3b3fB9C57858EF816833dC91565EFcd85D96f634' },
+  },
+  [ASSETS['USDtb']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xC139190F447e929f090Edeb554D95AbB8b18aC1C' },
+  },
+  [ASSETS['PT-USDe-31JUL2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x917459337CaAC939D41d7493B3999f571D20D667' },
+  },
+  [ASSETS['PT-eUSDE-14AUG2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x14Bdc3A3AE09f5518b923b69489CBcAfB238e617' },
+  },
+  [ASSETS['eUSDe']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x90D2af7d622ca3141efA4d8f1F24d86E5974Cc8F' },
+  },
+  [ASSETS['FBTC']]: {
+    decimals: 8,
+    aave: { chain: Chains.MAINNET, address: '0xC96dE26018A54D51c097160568752c4E3BD6C364' },
+  },
+  [ASSETS['EURC']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c' },
+  },
+  [ASSETS['PT-sUSDE-25SEP2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x9F56094C450763769BA0EA9Fe2876070c0fD5F77' },
+  },
+  [ASSETS['PT-USDe-25SEP2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xBC6736d346a5eBC0dEbc997397912CD9b8FAe10a' },
+  },
+  [ASSETS['tETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xD11c452fc99cF405034ee446803b6F6c1F6d5ED8' },
+  },
+  [ASSETS['ezETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xbf5495Efe5DB9ce00f80364C8B423567e58d2110' },
+  },
+  [ASSETS['XAUt']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0x68749665FF8D2d112Fa859AA293F07A622782F38' },
+  },
+  [ASSETS['PT-sUSDE-27NOV2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xe6A934089BBEe34F832060CE98848359883749B3' },
+  },
+  [ASSETS['PT-USDe-27NOV2025']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x62C6E813b9589C3631Ba0Cdb013acdB8544038B7' },
+  },
+  [ASSETS['PT-USDe-5FEB2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x1F84a51296691320478c98b8d77f2Bbd17D34350' },
+  },
+  [ASSETS['PT-sUSDE-5FEB2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xE8483517077afa11A9B07f849cee2552f040d7b2' },
+  },
+  [ASSETS['mUSD']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0xacA92E438df0B2401fF60dA7E4337B687a2435DA' },
+  },
+  [ASSETS['syrupUSDT']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0x356B8d89c1e1239Cbbb9dE4815c39A1474d5BA7D' },
+  },
+  [ASSETS['USDG']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0xe343167631d89B6Ffc58B88d6b7fB0228795491D' },
+  },
+  [ASSETS['PT-USDe-7MAY2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0xAeBf0Bb9f57E89260d57f31AF34eB58657d96Ce0' },
+  },
+  [ASSETS['PT-sUSDE-7MAY2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x3de0ff76E8b528C092d47b9DaC775931cef80F49' },
+  },
+  [ASSETS['PT-srUSDe-2APR2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x9Bf45ab47747F4B4dD09B3C2c73953484b4eB375' },
+  },
+  [ASSETS['BTC.b']]: {
+    decimals: 8,
+    aave: { chain: Chains.MAINNET, address: '0xB0F70C0bD6FD87dbEb7C10dC692a2a6106817072' },
+  },
+  [ASSETS['PT-srUSDe-25JUN2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x619D75E3b790eBC21c289f2805Bb7177A7D732E2' },
+  },
+  [ASSETS['PT-USDG-28MAY2026']]: {
+    decimals: 6,
+    aave: { chain: Chains.MAINNET, address: '0x9db38D74a0D29380899aD354121DfB521aDb0548' },
+  },
+  [ASSETS['PT-srUSDe-22OCT2026']]: {
+    decimals: 18,
+    aave: { chain: Chains.MAINNET, address: '0x59bC9FaE5D62B19d4f8d07D758047aCb9EE19d34' },
+  },
+  [ASSETS['wrsETH']]: {
+    decimals: 18,
+    aave: { chain: Chains.BASE, address: '0xEDfa23602D0EC14714057867A78d01e94176BEA0' },
+  },
+  [ASSETS['syrupUSDC']]: {
+    decimals: 6,
+    aave: { chain: Chains.BASE, address: '0x660975730059246A68521a3e2FBD4740173100f5' },
+  },
+  [ASSETS['sUSD']]: { decimals: 18, aave: { chain: Chains.OP, address: '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9' } },
+  [ASSETS['MAI']]: { decimals: 18, aave: { chain: Chains.OP, address: '0xdFA46478F9e5EA86d57387849598dbFB2e964b02' } },
 }
 export const POOL_FILTER_APR_THRESHOLD = 2
 export const POOL_FILTER_CAPACITY_THRESHOLD = -1
@@ -68,7 +391,7 @@ export const DEFAULT_PAST_BLOCK_OFFSET = 100
 
 export const assetByTokenId = Object.assign(
   {},
-  ...Object.entries(assetConf).map(([asset, { tokenId: id }]) => ({ [id]: asset })),
+  ...Object.entries(assetConf).flatMap(([asset, { tokenId: id }]) => (id ? [{ [id]: asset }] : [])),
 )
 
 export const web3Inst = new Web3('')
@@ -81,6 +404,7 @@ export const CHAIN_CONF: {
     chainId: number
     assets: { [addr: string]: ASSETS }
     aaveLendingPool: string
+    aaveOracle?: string
     merklCampaignsUrl?: string
     compoundBorrowings: string[]
     morpho?: {
@@ -108,6 +432,7 @@ export const CHAIN_CONF: {
     borrowables: [],
     staking: {},
     aaveLendingPool: '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2',
+    aaveOracle: '0x54586bE62E3c3580375aE3723C145253060Ca0C2',
     compoundBorrowings: [],
     revert: {
       vaults: ['0xa2754543f69dC036764bBfad16d2A74F5cD15667'],
@@ -120,6 +445,68 @@ export const CHAIN_CONF: {
     ],
     chainId: 1,
     assets: {
+      '0x6B175474E89094C44Da98b954EedeAC495271d0F': ASSETS['DAI'],
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA': ASSETS['LINK'],
+      '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9': ASSETS['AAVE'],
+      '0xBe9895146f7AF43049ca1c1AE358B0541Ea49704': ASSETS['cbETH'],
+      '0xdAC17F958D2ee523a2206206994597C13D831ec7': ASSETS['USDT'],
+      '0xae78736Cd615f374D3085123A210448E74Fc6393': ASSETS['rETH'],
+      '0x5f98805A4E8be255a32880FDeC7F6728C6568bA0': ASSETS['LUSD'],
+      '0xD533a949740bb3306d119CC777fa900bA034cd52': ASSETS['CRV'],
+      '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2': ASSETS['MKR'],
+      '0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F': ASSETS['SNX'],
+      '0xba100000625a3754423978a60c9317c58a424e3D': ASSETS['BAL'],
+      '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984': ASSETS['UNI'],
+      '0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32': ASSETS['LDO'],
+      '0xC18360217D8F7Ab5e7c516566761Ea12Ce7F9D72': ASSETS['ENS'],
+      '0x111111111117dC0aa78b770fA6A738034120C302': ASSETS['1INCH'],
+      '0x853d955aCEf822Db058eb8505911ED77F175b99e': ASSETS['FRAX'],
+      '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f': ASSETS['GHO'],
+      '0xD33526068D116cE69F19A9ee46F0bd304F21A51f': ASSETS['RPL'],
+      '0x83F20F44975D03b1b09e64809B757c47f942BEeA': ASSETS['sDAI'],
+      '0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6': ASSETS['STG'],
+      '0xdeFA4e8a7bcBA345F687a2f1456F5Edd9CE97202': ASSETS['KNC'],
+      '0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0': ASSETS['FXS'],
+      '0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E': ASSETS['crvUSD'],
+      '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8': ASSETS['PYUSD'],
+      '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee': ASSETS['weETH'],
+      '0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38': ASSETS['osETH'],
+      '0x4c9EDD5852cd905f086C759E8383e09bff1E68B3': ASSETS['USDe'],
+      '0xA35b1B31Ce002FBF2058D22F30f95D405200A15b': ASSETS['ETHx'],
+      '0x9D39A5DE30e57443BfF2A8307A4256c8797A3497': ASSETS['sUSDe'],
+      '0x18084fbA666a33d37592fA2633fD49a74DD93a88': ASSETS['tBTC'],
+      '0xdC035D45d973E3EC169d2276DDab16f1e407384F': ASSETS['USDS'],
+      '0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7': ASSETS['rsETH'],
+      '0x8236a87084f8B84306f72007F36F2618A5634494': ASSETS['LBTC'],
+      '0x657e8C867D8B37dCC18fA4Caead9C45EB088C642': ASSETS['eBTC'],
+      '0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD': ASSETS['RLUSD'],
+      '0x50D2C7992b802Eef16c04FeADAB310f31866a545': ASSETS['PT-eUSDE-29MAY2025'],
+      '0x3b3fB9C57858EF816833dC91565EFcd85D96f634': ASSETS['PT-sUSDE-31JUL2025'],
+      '0xC139190F447e929f090Edeb554D95AbB8b18aC1C': ASSETS['USDtb'],
+      '0x917459337CaAC939D41d7493B3999f571D20D667': ASSETS['PT-USDe-31JUL2025'],
+      '0x14Bdc3A3AE09f5518b923b69489CBcAfB238e617': ASSETS['PT-eUSDE-14AUG2025'],
+      '0x90D2af7d622ca3141efA4d8f1F24d86E5974Cc8F': ASSETS['eUSDe'],
+      '0xC96dE26018A54D51c097160568752c4E3BD6C364': ASSETS['FBTC'],
+      '0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c': ASSETS['EURC'],
+      '0x9F56094C450763769BA0EA9Fe2876070c0fD5F77': ASSETS['PT-sUSDE-25SEP2025'],
+      '0xBC6736d346a5eBC0dEbc997397912CD9b8FAe10a': ASSETS['PT-USDe-25SEP2025'],
+      '0xD11c452fc99cF405034ee446803b6F6c1F6d5ED8': ASSETS['tETH'],
+      '0xbf5495Efe5DB9ce00f80364C8B423567e58d2110': ASSETS['ezETH'],
+      '0x68749665FF8D2d112Fa859AA293F07A622782F38': ASSETS['XAUt'],
+      '0xe6A934089BBEe34F832060CE98848359883749B3': ASSETS['PT-sUSDE-27NOV2025'],
+      '0x62C6E813b9589C3631Ba0Cdb013acdB8544038B7': ASSETS['PT-USDe-27NOV2025'],
+      '0x1F84a51296691320478c98b8d77f2Bbd17D34350': ASSETS['PT-USDe-5FEB2026'],
+      '0xE8483517077afa11A9B07f849cee2552f040d7b2': ASSETS['PT-sUSDE-5FEB2026'],
+      '0xacA92E438df0B2401fF60dA7E4337B687a2435DA': ASSETS['mUSD'],
+      '0x356B8d89c1e1239Cbbb9dE4815c39A1474d5BA7D': ASSETS['syrupUSDT'],
+      '0xe343167631d89B6Ffc58B88d6b7fB0228795491D': ASSETS['USDG'],
+      '0xAeBf0Bb9f57E89260d57f31AF34eB58657d96Ce0': ASSETS['PT-USDe-7MAY2026'],
+      '0x3de0ff76E8b528C092d47b9DaC775931cef80F49': ASSETS['PT-sUSDE-7MAY2026'],
+      '0x9Bf45ab47747F4B4dD09B3C2c73953484b4eB375': ASSETS['PT-srUSDe-2APR2026'],
+      '0xB0F70C0bD6FD87dbEb7C10dC692a2a6106817072': ASSETS['BTC.b'],
+      '0x619D75E3b790eBC21c289f2805Bb7177A7D732E2': ASSETS['PT-srUSDe-25JUN2026'],
+      '0x9db38D74a0D29380899aD354121DfB521aDb0548': ASSETS['PT-USDG-28MAY2026'],
+      '0x59bC9FaE5D62B19d4f8d07D758047aCb9EE19d34': ASSETS['PT-srUSDe-22OCT2026'],
       '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': ASSETS.ETH,
       '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': ASSETS.USDC,
       '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0': ASSETS.wstETH,
@@ -176,6 +563,7 @@ export const CHAIN_CONF: {
       // web3Inst.utils.toChecksumAddress('0x5d93f216f17c225a8B5fFA34e74B7133436281eE'), // V3
     ],
     aaveLendingPool: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
+    aaveOracle: '0x2Cc0Fc26eD4563A5ce5e8bdcfe1A2878676Ae156',
     compoundBorrowings: [
       '0x784efeB622244d2348d4F2522f8860B96fbEcE89', // AERO
     ],
@@ -195,6 +583,15 @@ export const CHAIN_CONF: {
     rpcUrls: ['https://mainnet.base.org', 'https://1rpc.io/base', 'https://base.meowrpc.com'],
     chainId: 8453,
     assets: {
+      '0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A': ASSETS['weETH'],
+      '0x2416092f143378750bb29b79eD961ab195CcEea5': ASSETS['ezETH'],
+      '0x6Bb7a212910682DCFdbd5BCBb3e28FB4E8da10Ee': ASSETS['GHO'],
+      '0xEDfa23602D0EC14714057867A78d01e94176BEA0': ASSETS['wrsETH'],
+      '0xecAc9C5F704e954931349Da37F60E39f515c11c1': ASSETS['LBTC'],
+      '0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42': ASSETS['EURC'],
+      '0x63706e401c06ac8513145b7687A14804d17f814b': ASSETS['AAVE'],
+      '0x236aa50979D5f3De3Bd1Eeb40E81137F22ab794b': ASSETS['tBTC'],
+      '0x660975730059246A68521a3e2FBD4740173100f5': ASSETS['syrupUSDC'],
       '0x4200000000000000000000000000000000000006': ASSETS.ETH,
       '0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452': ASSETS.wstETH,
       '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913': ASSETS.USDC,
@@ -222,6 +619,7 @@ export const CHAIN_CONF: {
     ],
     staking: {},
     aaveLendingPool: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+    aaveOracle: '0xD81eb3728a631871a7eBBaD631b5f424909f0c77',
     compoundBorrowings: [],
     rpcUrls: [
       'https://gateway.tenderly.co/public/optimism',
@@ -231,6 +629,15 @@ export const CHAIN_CONF: {
     ],
     chainId: 10,
     assets: {
+      '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1': ASSETS['DAI'],
+      '0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6': ASSETS['LINK'],
+      '0x68f180fcCe6836688e9084f035309E29Bf0A2095': ASSETS['WBTC'],
+      '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58': ASSETS['USDT'],
+      '0x76FB31fb4af56892A25e32cFC43De717950c9278': ASSETS['AAVE'],
+      '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9': ASSETS['sUSD'],
+      '0xc40F949F8a4e094D1b49a23ea9241D289B7b2819': ASSETS['LUSD'],
+      '0xdFA46478F9e5EA86d57387849598dbFB2e964b02': ASSETS['MAI'],
+      '0x9Bcef72be871e61ED4fBbc7630889beE758eb81D': ASSETS['rETH'],
       '0x4200000000000000000000000000000000000006': ASSETS.ETH,
       '0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb': ASSETS.wstETH,
       '0x7F5c764cBc14f9669B88837ca1490cCa17c31607': ASSETS.USDC,

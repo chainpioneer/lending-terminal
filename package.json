@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "deploy": "gh-pages -d dist",
     "lint": "eslint src/",
+    "test:aave": "node scripts/check-aave.mjs",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue}\""
   },

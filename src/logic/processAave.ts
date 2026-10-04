@@ -29,7 +29,7 @@ export function processAaveBalances(
     ctx.aTokenInfo[chain][reserve] = {
       supply: toDeposit(aSupply, div, asset),
       borrow: toDeposit(vdSupply, div, asset),
-      kinkUtilizationRatio: dataFromCall4[skipCount + i * (users.length * 2 + 3) + 2],
+      kinkUtilizationRatio: dataFromCall4[skipCount + i * (users.length * 2 + 3) + 2] ?? 0n,
     }
     users.forEach((u, j) => {
       const aBalance = dataFromCall4[skipCount + i * (users.length * 2 + 3) + j * 2 + 3] as bigint
@@ -117,14 +117,7 @@ export function processAaveBalances(
 
         accumulateDeposit(ctx.suppliedByAssetByUser, [asset, u], aBalance, div, asset)
 
-        const earnings = Number(
-          (
-            Number(
-              (ctx.aaveReserveData[chain][reserve][2] * ctx.aaveABalancesByChainByAssetAddress[chain][reserve].bn) /
-                365n,
-            ) / 1e27
-          ).toFixed(2),
-        )
+        const earnings = Number((Number((ctx.aaveReserveData[chain][reserve][2] * aBalance) / 365n) / 1e27).toFixed(2))
 
         populateCumulativeByAsset(
           ctx.cumulativeValuesByAsset,
@@ -191,7 +184,8 @@ export function buildAavePools(ctx: LoadContext, chain: Chains, conf: ChainConf,
   assetAddressesOnAAVE.forEach((aaveAsset: string) => {
     const asset = conf.assets[aaveAsset]
     const div = getDiv(asset)
-    const utilization = (ctx.aTokenInfo[chain][aaveAsset].borrow.bn * ONE) / ctx.aTokenInfo[chain][aaveAsset].supply.bn
+    const supply = ctx.aTokenInfo[chain][aaveAsset].supply.bn
+    const utilization = supply > 0n ? (ctx.aTokenInfo[chain][aaveAsset].borrow.bn * ONE) / supply : 0n
     const availableToDeposit =
       ctx.aTokenInfo[chain][aaveAsset].borrow.bn -
       (ctx.aTokenInfo[chain][aaveAsset].supply.bn * ctx.aTokenInfo[chain][aaveAsset].kinkUtilizationRatio) / 10n ** 27n

@@ -1,4 +1,4 @@
-import { ASSETS, Chains } from '../constants/constants'
+import { ASSETS, Chains, assetConf } from '../constants/constants'
 
 export const chainIdByChain: { [ch in Chains]: string } = {
   [Chains.MAINNET]: '0x1',
@@ -37,6 +37,18 @@ export function chainImgSrc(ch: number | string) {
 }
 
 export function assetImgSrc(asset: number | string) {
+  const source = assetConf[asset as ASSETS]?.aave
+  if (source) {
+    const symbol = String(asset).toLowerCase()
+    const icon = symbol.startsWith('pt-srusde-')
+      ? 'ptsrusde'
+      : symbol.startsWith('pt-')
+        ? symbol.split('-')[1]
+        : symbol === 'btc.b'
+          ? 'btc'
+          : symbol
+    return `https://raw.githubusercontent.com/bgd-labs/web3-icons/main/icons/full/${icon}.svg`
+  }
   switch (asset) {
     case ASSETS.AVAX:
       return chainImgSrc(Chains.AVAX)

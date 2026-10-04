@@ -1,4 +1,5 @@
 import { Call, Contract } from 'ethcall'
+import { portfolioSummary } from './portfolioSummary'
 
 import interestRateModelAbi from '../../abi/AAVEInterestRateModel.json' assert { type: 'json' }
 import aaveLendingPoolAbi from '../../abi/AAVELendingPool.json' assert { type: 'json' }
@@ -753,39 +754,41 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
   // === Aggregate stats by asset ===
   let totalDeposited = 0
-  let oldTotalEarnings = ctx.compoundBorrowingReward.usd / 365
-  let newTotalEarnings = ctx.compoundBorrowingReward.usd / 365
-  let maxTotalEarnings = ctx.compoundBorrowingReward.usd / 365
+  // COMP is annualized; Morpho and Spark totals are already USD per day.
+  const dailyRewards = ctx.compoundBorrowingReward.usd / 365 + ctx.morphoRewardTotalUsd + ctx.sparkRewardTotalUsd
+  let oldTotalEarnings = dailyRewards
+  let newTotalEarnings = dailyRewards
+  let maxTotalEarnings = dailyRewards
   for (const a in ASSETS) {
     const price = getAssetPrice(a as ASSETS)
     const div = getDiv(a as ASSETS)
     const ca = ctx.cumulativeValuesByAsset[a]
+    if (ctx.aaveVDBalancesByAsset[a]) {
+      totalDeposited -= Number(ctx.aaveVDBalancesByAsset[a].usd)
+      if (ctx.aaveVDBalancesByAsset[a].usd > 0) {
+        console.log('aave debt', a, ctx.aaveVDBalancesByAsset[a])
+      }
+    }
+    if (ctx.compoundDebtByAsset[a]) {
+      totalDeposited -= Number(ctx.compoundDebtByAsset[a].usd)
+      if (ctx.compoundDebtByAsset[a].usd > 0) {
+        console.log('compound debt', a, ctx.compoundDebtByAsset[a])
+      }
+    }
+    if (ctx.aaveVDSpendingsByAsset[a]) {
+      oldTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
+      newTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
+      maxTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
+    }
+    if (ctx.compoundSpendingsByAsset[a]) {
+      if (ctx.compoundSpendingsByAsset[a].usd > 0) {
+        console.log('compound spendings', a, Number(ctx.compoundSpendingsByAsset[a].usd) / 365)
+      }
+      oldTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
+      newTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
+      maxTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
+    }
     if (ca) {
-      if (ctx.aaveVDBalancesByAsset[a]) {
-        totalDeposited -= Number(ctx.aaveVDBalancesByAsset[a].usd)
-        if (ctx.aaveVDBalancesByAsset[a].usd > 0) {
-          console.log('aave debt', a, ctx.aaveVDBalancesByAsset[a])
-        }
-      }
-      if (ctx.compoundDebtByAsset[a]) {
-        totalDeposited -= Number(ctx.compoundDebtByAsset[a].usd)
-        if (ctx.compoundDebtByAsset[a].usd > 0) {
-          console.log('compound debt', a, ctx.compoundDebtByAsset[a])
-        }
-      }
-      if (ctx.aaveVDSpendingsByAsset[a]) {
-        oldTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
-        newTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
-        maxTotalEarnings -= Number(ctx.aaveVDSpendingsByAsset[a].usd) / 365
-      }
-      if (ctx.compoundSpendingsByAsset[a]) {
-        if (ctx.compoundSpendingsByAsset[a].usd > 0) {
-          console.log('compound spendings', a, Number(ctx.compoundSpendingsByAsset[a].usd) / 365)
-        }
-        oldTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
-        newTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
-        maxTotalEarnings -= Number(ctx.compoundSpendingsByAsset[a].usd) / 365
-      }
       const [depUsd, oldEarnings, newEarinings, maxEarnings] = formatStats(ca, price, div)
       totalDeposited += Number(depUsd)
       oldTotalEarnings += Number(oldEarnings)
@@ -800,7 +803,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
       ca.oldDailyEarnings = Number((ca.oldDailyEarnings / div).toFixed(4))
       ca.newUserSupplied = Number((ca.newUserSupplied / div).toFixed(4))
       ca.maxDailyEarnings = Number((ca.maxDailyEarnings / div).toFixed(4))
-      if (ctx.cumulativeValuesByAsset[a].newUserSuppliedUsd + ctx.idleBalancesByAsset[a].usd < 1) {
+      if (ctx.cumulativeValuesByAsset[a].newUserSuppliedUsd + (ctx.idleBalancesByAsset[a]?.usd ?? 0) < 1) {
         delete ctx.cumulativeValuesByAsset[a]
       }
     }
@@ -880,6 +883,8 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
   const res = {
     goodPools,
+    portfolioSummary: portfolioSummary(ctx),
+    fetchedAt: new Date().toISOString(),
     idleBalancesByAsset: ctx.idleBalancesByAsset,
     idleBalancesByChain: ctx.idleBalancesByChain,
     idleBalancesByChainByUser: ctx.idleBalancesByChainByUser,
@@ -903,7 +908,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
             token: ctx.morphoRewardToken,
             amount: Number(ctx.morphoRewardTotalAmount.toFixed(4)),
             usd: Number(ctx.morphoRewardTotalUsd.toFixed(2)),
-            apr: Number(((ctx.morphoRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
+            apr: totalDeposited > 0 ? Number(((ctx.morphoRewardTotalUsd * 36500) / totalDeposited).toFixed(2)) : null,
           }
         : null,
     sparkRewardsByAsset: ctx.sparkRewardsByAsset,
@@ -915,7 +920,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
             token: ctx.sparkRewardToken,
             amount: Number(ctx.sparkRewardTotalAmount.toFixed(4)),
             usd: Number(ctx.sparkRewardTotalUsd.toFixed(2)),
-            apr: Number(((ctx.sparkRewardTotalUsd * 36500) / totalDeposited).toFixed(2)),
+            apr: totalDeposited > 0 ? Number(((ctx.sparkRewardTotalUsd * 36500) / totalDeposited).toFixed(2)) : null,
           }
         : null,
     totalDeposited: totalDeposited.toFixed(2),

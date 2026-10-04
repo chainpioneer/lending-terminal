@@ -2,6 +2,7 @@ import { isAddress } from 'web3-validator'
 
 export function toUSDCurrency(n: number | string): string {
   n = String(n)
+  if (n.startsWith('-')) return '-' + toUSDCurrency(n.slice(1))
   const pointIndex = n.indexOf('.')
 
   let lastIndex
