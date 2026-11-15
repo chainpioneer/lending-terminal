@@ -581,8 +581,10 @@ export const CHAIN_CONF: {
       // },
     },
     rpcUrls: [
-      'https://mainnet.base.org',
       'https://base-rpc.publicnode.com',
+      'https://base-mainnet.g.alchemy.com/public',
+      'https://base-mainnet.public.blastapi.io',
+      'https://mainnet.base.org',
       'https://1rpc.io/base',
       'https://base.meowrpc.com',
     ],
@@ -738,9 +740,7 @@ export const CHAIN_CONF: {
         'https://api.merkl.xyz/v4/opportunities/campaigns?chainId=480&status=LIVE&types=MORPHOVAULT,MORPHOBORROW',
     },
     rpcUrls: [
-      'https://worldchain-mainnet.gateway.tenderly.co',
       'https://worldchain-mainnet.g.alchemy.com/public',
-      'https://worldchain.drpc.org',
       'https://480.rpc.thirdweb.com',
       'https://sparkling-autumn-dinghy.worldchain-mainnet.quiknode.pro',
     ],

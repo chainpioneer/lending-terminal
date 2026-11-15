@@ -27,7 +27,7 @@ const lastProviderIndex: { [key: string]: number } = {}
 const maxErrCount: { [key: string]: number } = {}
 Object.entries(CHAIN_CONF).forEach(([chain, { rpcUrls }]) => {
   lastProviderIndex[chain] = 0
-  maxErrCount[chain] = rpcUrls.length * 2
+  maxErrCount[chain] = rpcUrls.length
 })
 
 export function getCurrentEthCallProvider(chain: Chains) {
@@ -59,6 +59,10 @@ async function multicallWithTimeout(
       return result
     } catch (error) {
       lastError = error
+      console.warn(
+        `${chain} ${method} (${requests.length} calls, block ${blockNumber ?? 'latest'}) failed at ${CHAIN_CONF[chain].rpcUrls[lastProviderIndex[chain]]}`,
+        error,
+      )
       switchProvider(chain)
     }
   }
@@ -99,9 +103,10 @@ export function tryWithTimeout(
   return multicallWithTimeout(chain, requests, 'tryAll', blockNumber, timeout, from)
 }
 
-export async function web3EthCall(chain: Chains, method: string, params: any[], timeout = 15_000) {
+export async function web3EthCall(chain: Chains, method: string, params: any[], timeout = 8_000) {
   const providerCount = WEB3_PROVIDERS[chain].length
-  for (let i = 0; i < providerCount * 2; i++) {
+  let lastError: unknown
+  for (let i = 0; i < providerCount; i++) {
     const web3: Web3 = WEB3_PROVIDERS[chain][lastProviderIndex[chain]]
 
     try {
@@ -109,9 +114,10 @@ export async function web3EthCall(chain: Chains, method: string, params: any[], 
       if (result === undefined) throw new Error('Empty provider response')
       return result
     } catch (e) {
+      lastError = e
       console.log(`${chain} ${method} failed at provider ${lastProviderIndex[chain]}: ${String(e)}`)
       switchProvider(chain)
     }
   }
-  throw new Error(`Web3 eth call failed 2 times: method ${method} provider count ${providerCount}`)
+  throw new Error(`Web3 eth call failed after ${providerCount} attempts: ${chain} ${method}`, { cause: lastError })
 }
