@@ -2,9 +2,12 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import { allocationDebtLabel, allocationIdleLabel, type PortfolioAllocation } from '../logic/portfolioAllocation'
 
 const props = defineProps<{
+  allocation: PortfolioAllocation
   apr: string
+  aprWithIdle: string
   summary: { protocols: number; chains: number; assets: number; positions: number }
   fetchedAt: string
 }>()
@@ -16,7 +19,7 @@ const xReady = ref(false)
 let file: File | undefined
 const text = computed(
   () =>
-    `My aggregate lending portfolio APR: ${props.apr}. ${props.summary.protocols} protocols · ${props.summary.chains} chains · ${props.summary.assets} assets · ${props.summary.positions} positions. Check your yield with Lending Terminal.`,
+    `My aggregate lending portfolio APR: ${props.apr} excluding idle, ${props.aprWithIdle} including idle. ${props.summary.protocols} protocols · ${props.summary.chains} chains · ${props.summary.assets} assets · ${props.summary.positions} positions. Check your yield with Lending Terminal.`,
 )
 const tweetUrl = computed(() => `https://twitter.com/intent/tweet?${new URLSearchParams({ text: text.value, url })}`)
 
@@ -40,15 +43,51 @@ async function prepare() {
       ctx.fillText(value, x, y)
     }
     write('LENDING TERMINAL', 64, 70, 22, '#73dfa5', true)
-    write('Your whole lending portfolio. One APR.', 64, 126, 32)
-    write(props.apr, 58, 294, 136, props.apr.startsWith('-') ? '#ff9898' : '#73dfa5', true)
-    write('AGGREGATE PORTFOLIO APR', 64, 337, 18, '#a9bfb3')
+    const writeApr = (value: string, x: number, size: number, color = '#73dfa5') => {
+      ctx.font = `700 ${size}px system-ui, sans-serif`
+      const fittedSize = Math.min(size, (size * 270) / Math.max(ctx.measureText(value).width, 1))
+      write(value, x, 285, fittedSize, value.startsWith('-') ? '#ff9898' : color, true)
+    }
+    writeApr(props.apr, 58, 78)
+    writeApr(props.aprWithIdle, 365, 48, '#91a7ff')
+    write('APR · EXCL. IDLE', 64, 323, 17, '#a9bfb3')
+    write('APR · INCL. IDLE', 365, 323, 17, '#a9bfb3')
+    write('ASSET MIX', 690, 165, 18, '#a9bfb3')
+    write('Including idle · before debt', 690, 185, 13, '#a9bfb3')
+    const assets = props.allocation.filter((group) => group.usd > 0)
+    if (assets.length) {
+      let angle = -Math.PI / 2
+      for (const group of assets) {
+        const end = angle + group.share * Math.PI * 2
+        ctx.beginPath()
+        ctx.arc(770, 270, 64, angle, end)
+        ctx.strokeStyle = group.color
+        ctx.lineWidth = 16
+        ctx.stroke()
+        angle = end
+      }
+      assets.forEach((group, i) => {
+        const y = 220 + i * 32
+        ctx.fillStyle = group.color
+        ctx.fillRect(875, y - 12, 10, 10)
+        write(group.label, 898, y, 18)
+        write(`${(group.share * 100).toFixed(1)}%`, 1035, y, 18, group.color, true)
+      })
+    } else {
+      write('No assets', 690, 260, 22, '#a9bfb3')
+    }
+    write(
+      `${allocationIdleLabel(props.allocation)} · ${allocationDebtLabel(props.allocation)}`,
+      690,
+      370,
+      14,
+      '#a9bfb3',
+    )
     Object.entries(props.summary).forEach(([label, value], i) => {
       write(String(value), 64 + i * 276, 421, 40, '#eaf5ef', true)
       write(label.toUpperCase(), 64 + i * 276, 457, 16, '#a9bfb3')
     })
-    write('Net of supported borrowing costs. Idle funds excluded.', 64, 510, 18, '#a9bfb3')
-    write('Includes available COMP, Morpho / Spark rewards. Rates are a snapshot.', 64, 539, 17, '#a9bfb3')
+    write('Snapshot APRs · Available rewards included · Net of supported borrowing costs', 64, 530, 16, '#a9bfb3')
     write('chainpioneer.github.io/lending-terminal', 64, 593, 21, '#73dfa5')
     write(new Date(props.fetchedAt).toISOString().slice(0, 10) + ' UTC', 925, 593, 17, '#a9bfb3')
     const blob = await new Promise<Blob>((resolve, reject) =>
@@ -84,9 +123,11 @@ onBeforeUnmount(() => URL.revokeObjectURL(imageUrl.value))
       v-if="imageUrl"
       :src="imageUrl"
       class="share-preview"
-      alt="Portfolio APR share card with protocol, chain, asset and position counts"
+      alt="Portfolio APRs excluding and including idle, share card with asset allocation, idle share and debt ratio and protocol, chain, asset and position counts"
     />
-    <p class="text-secondary">APR and portfolio counts only. No addresses or balances.</p>
+    <p class="text-secondary">
+      APR, asset allocation, idle share, debt-to-assets ratio and portfolio counts only. No addresses or balances.
+    </p>
     <div v-if="imageUrl" class="share-actions">
       <a v-if="xReady" :href="tweetUrl" target="_blank" rel="noopener noreferrer" class="p-button"
         >Open X → paste image</a

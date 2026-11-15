@@ -529,7 +529,7 @@ export const CHAIN_CONF: {
       web3Inst.utils.toChecksumAddress('0x897cf921b95e493fca1fe007573b89a98974c45b'),
       web3Inst.utils.toChecksumAddress('0x6b3e5a7e2774c5158d619aa28845d64d90a3926c'),
       web3Inst.utils.toChecksumAddress('0xa9B5d4bF5E8cBC168B55f92688ECA66E098fB5Fa'),
-      web3Inst.utils.toChecksumAddress('0x2edd0e2249179336b09b8bb69118d29326ec5409'),
+      // Excluded: 0x2edd0e2249179336b09b8bb69118d29326ec5409 — bad debt (WETH/TKN).
       web3Inst.utils.toChecksumAddress('0x0c8c948ED09B92A9fC489CeCe85Cc7E1E22D964F'),
       web3Inst.utils.toChecksumAddress('0xe70B375f76f32c489fb72D630e73Ebc738CEE73a'),
       // web3Inst.utils.toChecksumAddress('0x74705C3C2E01891044f8654445DcCf6e28b51758'), // OX toxic
@@ -580,7 +580,12 @@ export const CHAIN_CONF: {
       //   rewardToken: '0xba0Dda8762C24dA9487f5FA026a9B64b695A07Ea',
       // },
     },
-    rpcUrls: ['https://mainnet.base.org', 'https://1rpc.io/base', 'https://base.meowrpc.com'],
+    rpcUrls: [
+      'https://mainnet.base.org',
+      'https://base-rpc.publicnode.com',
+      'https://1rpc.io/base',
+      'https://base.meowrpc.com',
+    ],
     chainId: 8453,
     assets: {
       '0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A': ASSETS['weETH'],

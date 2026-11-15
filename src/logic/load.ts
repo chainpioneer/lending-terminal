@@ -1,5 +1,6 @@
 import { Call, Contract } from 'ethcall'
 import { portfolioSummary } from './portfolioSummary'
+import { portfolioAllocation } from './portfolioAllocation'
 
 import interestRateModelAbi from '../../abi/AAVEInterestRateModel.json' assert { type: 'json' }
 import aaveLendingPoolAbi from '../../abi/AAVELendingPool.json' assert { type: 'json' }
@@ -881,9 +882,16 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     return acc + curr.usd
   }, 0)
 
+  const totalCapitalWithIdle = totalDeposited + usd
+  const aprWithIdle = totalCapitalWithIdle > 0 ? ((oldTotalEarnings * 36500) / totalCapitalWithIdle).toFixed(2) : null
+
   const res = {
     goodPools,
     portfolioSummary: portfolioSummary(ctx),
+    portfolioAllocation: portfolioAllocation(ctx.suppliedByAssetByUser, ctx.idleBalancesByAssetByUser, [
+      ctx.aaveVDBalancesByAsset,
+      ctx.compoundDebtByAsset,
+    ]),
     fetchedAt: new Date().toISOString(),
     idleBalancesByAsset: ctx.idleBalancesByAsset,
     idleBalancesByChain: ctx.idleBalancesByChain,
@@ -929,6 +937,7 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     maxTotalEarnings: maxTotalEarnings.toFixed(2),
     maxAPR,
     currentAPR,
+    aprWithIdle,
     aavePositions: ctx.aavePositions,
     chainAggregatedStats: ctx.chainAggregatedStats,
     poolAssets: Object.keys(poolAssets),

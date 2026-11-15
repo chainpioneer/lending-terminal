@@ -36,6 +36,7 @@ import {
 } from '../utils/chainMappings'
 import StatWithBreakdown from './StatWithBreakdown.vue'
 import PortfolioShare from './PortfolioShare.vue'
+import PortfolioAllocation from './PortfolioAllocation.vue'
 
 defineProps<{ msg: string }>()
 
@@ -332,7 +333,7 @@ async function handleRedeem(pool: Pool) {
 <template>
   <header class="page-header">
     <h1>{{ msg }}</h1>
-    <p class="mb-2">Your wallets. Your lending positions. One portfolio APR.</p>
+    <p class="mb-2">Your wallets. Your lending positions. Your portfolio yield.</p>
     <small class="text-secondary">A personal DeFi yield aggregator. Built in public, supported for nobody.</small>
   </header>
 
@@ -387,10 +388,10 @@ async function handleRedeem(pool: Pool) {
   <Tabs v-model:value="activeTab" class="portfolio-tabs">
     <TabList aria-label="Portfolio modules">
       <Tab value="portfolio">Portfolio APR</Tab>
+      <Tab value="markets" :disabled="!data">Opportunities</Tab>
       <Tab value="positions" :disabled="!data">Positions</Tab>
       <Tab value="assets" :disabled="!data">Assets</Tab>
       <Tab value="networks" :disabled="!data">Networks</Tab>
-      <Tab value="markets" :disabled="!data">Markets</Tab>
     </TabList>
     <TabPanels>
       <TabPanel value="portfolio">
@@ -398,9 +399,20 @@ async function handleRedeem(pool: Pool) {
           <div>
             <span class="eyebrow">THE YIELD OF YOUR PORTFOLIO</span>
             <h2 id="portfolio-apr-title">Aggregate portfolio APR</h2>
-            <div class="apr-number" :class="{ negative: data && Number(data.currentAPR) < 0 }">
-              {{ data && Number(data.totalDeposited) > 0 ? data.currentAPR : '—'
-              }}<span v-if="data && Number(data.totalDeposited) > 0">%</span>
+            <div class="apr-comparison">
+              <div>
+                <div class="apr-number" :class="{ negative: data && Number(data.currentAPR) < 0 }">
+                  {{ data && Number(data.totalDeposited) > 0 ? data.currentAPR : '—'
+                  }}<span v-if="data && Number(data.totalDeposited) > 0">%</span>
+                </div>
+                <span class="apr-caption">Excluding idle</span>
+              </div>
+              <div>
+                <div class="apr-number apr-with-idle" :class="{ negative: data && Number(data.aprWithIdle) < 0 }">
+                  {{ data?.aprWithIdle ?? '—' }}<span v-if="data?.aprWithIdle != null">%</span>
+                </div>
+                <span class="apr-caption">Including idle</span>
+              </div>
             </div>
             <p v-if="!data">Add your wallets to see what your lending portfolio earns as a whole.</p>
             <p v-else-if="Number(data.totalDeposited) <= 0">
@@ -412,11 +424,12 @@ async function handleRedeem(pool: Pool) {
             </p>
           </div>
           <div class="apr-method">
-            <h3>One rate, across your positions.</h3>
+            <h3>Yield across your positions.</h3>
             <p>Annualized net daily earnings ÷ net supplied capital. Weighted by value, not an average of pool APRs.</p>
             <p class="text-secondary">
-              Idle funds are excluded. Includes estimated COMP, Morpho and Spark rewards when available. Coverage is
-              limited to configured integrations; unavailable incentives are not included.
+              “Including idle” uses net supplied capital + idle balances. Both rates include estimated COMP, Morpho and
+              Spark rewards when available. Coverage is limited to configured integrations; unavailable incentives are
+              not included.
             </p>
             <a
               href="https://github.com/chainpioneer/lending-terminal#what-the-apr-numbers-mean"
@@ -435,7 +448,9 @@ async function handleRedeem(pool: Pool) {
             </div>
             <PortfolioShare
               :apr="Number(data.totalDeposited) > 0 ? data.currentAPR + '%' : 'N/A'"
+              :apr-with-idle="data.aprWithIdle != null ? data.aprWithIdle + '%' : 'N/A'"
               :summary="data.portfolioSummary"
+              :allocation="data.portfolioAllocation"
               :fetched-at="data.fetchedAt"
             />
           </div>
@@ -443,6 +458,7 @@ async function handleRedeem(pool: Pool) {
             Tracked positions only. Each market + asset counts once across wallets; supply and debt are combined. Idle
             balances excluded.
           </p>
+          <PortfolioAllocation :allocation="data.portfolioAllocation" />
           <div class="kpi-grid">
             <div class="kpi">
               <span class="kpi-label">Net supplied capital</span>
@@ -499,7 +515,7 @@ async function handleRedeem(pool: Pool) {
 
       <TabPanel v-if="data" value="positions">
         <p v-if="!hasLendingPositions" class="empty">
-          No Aave or Compound positions found. Vault and pool deposits are available in Markets.
+          No Aave or Compound positions found. Vault and pool deposits are available in Opportunities.
         </p>
         <div class="card-grid">
           <template v-for="(chainProps, chain) in data.compoundBorrowingInfo" :key="chain">
@@ -1136,6 +1152,20 @@ async function handleRedeem(pool: Pool) {
   font-size: 1.15rem;
   font-weight: 500;
   margin: 0.75rem 0 0;
+}
+.apr-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 2rem;
+}
+.apr-caption {
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+.apr-number.apr-with-idle {
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: #91a7ff;
 }
 .apr-number {
   font-size: clamp(4rem, 9vw, 7rem);
