@@ -405,6 +405,7 @@ export const CHAIN_CONF: {
     assets: { [addr: string]: ASSETS }
     aaveLendingPool: string
     aaveOracle?: string
+    fluid?: { vaultResolver: string; dexResolver: string }
     merklCampaignsUrl?: string
     compoundBorrowings: string[]
     morpho?: {
@@ -429,6 +430,10 @@ export const CHAIN_CONF: {
   }
 } = {
   [Chains.MAINNET]: {
+    fluid: {
+      vaultResolver: '0x6943Ed9E53e3713Bf24a92016984254311772F1A',
+      dexResolver: '0x11D80CfF056Cef4F9E6d23da8672fE9873e5cC07',
+    },
     borrowables: [],
     staking: {},
     aaveLendingPool: '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2',

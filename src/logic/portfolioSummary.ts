@@ -1,7 +1,11 @@
+import type { FluidPosition } from './processFluid'
 import type { LoadContext } from './loadContext'
 
 // A position is a market + asset, merged across wallets and supply/borrow sides.
-export function portfolioSummary(ctx: Pick<LoadContext, 'pools' | 'aavePositions' | 'compoundBorrowingInfo'>) {
+export function portfolioSummary(
+  ctx: Pick<LoadContext, 'pools' | 'aavePositions' | 'compoundBorrowingInfo'>,
+  fluid: FluidPosition[] = [],
+) {
   const protocols = new Set<string>()
   const chains = new Set<string>()
   const assets = new Set<string>()
@@ -30,6 +34,11 @@ export function portfolioSummary(ctx: Pick<LoadContext, 'pools' | 'aavePositions
         if (Object.values(users).some((d) => d.bn > 0n))
           add('Compound', chain, market.toLowerCase(), entry.collateralToAsset[address])
       }
+    }
+  }
+  for (const position of fluid) {
+    for (const leg of [...position.supply, ...position.borrow]) {
+      if (leg.bn > 0n) add('Fluid', 'MAINNET', position.vault, leg.asset)
     }
   }
   return { protocols: protocols.size, chains: chains.size, assets: assets.size, positions: positions.size }

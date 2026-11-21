@@ -35,6 +35,7 @@ import {
   linkToExplorer,
 } from '../utils/chainMappings'
 import StatWithBreakdown from './StatWithBreakdown.vue'
+import LivePortfolioBalance from './LivePortfolioBalance.vue'
 import PortfolioShare from './PortfolioShare.vue'
 import PortfolioAllocation from './PortfolioAllocation.vue'
 
@@ -73,6 +74,7 @@ const visiblePools = computed<Pool[]>(() =>
 
 const hasLendingPositions = computed(
   () =>
+    !!data.value?.fluidPositions?.length ||
     Object.keys(data.value?.aavePositions ?? {}).length > 0 ||
     Object.values(data.value?.compoundBorrowingInfo ?? {}).some((markets: any) =>
       Object.values(markets).some((market: any) => Object.keys(market.positions ?? {}).length > 0),
@@ -463,7 +465,11 @@ async function handleRedeem(pool: Pool) {
             <div class="kpi">
               <span class="kpi-label">Net supplied capital</span>
               <StatWithBreakdown :showBreakdown="data.users.length > 1">
-                {{ toUSDCurrency(data.totalDeposited) }}
+                <LivePortfolioBalance
+                  :balance="Number(data.totalDeposited)"
+                  :daily-earnings="data.netDailyEarningsUsd"
+                  :fetched-at="data.fetchedAt"
+                />
                 <template #breakdown>
                   <div v-for="(usd, address) in data.suppliedByUser" :key="address" class="flex items-center gap-2">
                     <div>
@@ -515,9 +521,35 @@ async function handleRedeem(pool: Pool) {
 
       <TabPanel v-if="data" value="positions">
         <p v-if="!hasLendingPositions" class="empty">
-          No Aave or Compound positions found. Vault and pool deposits are available in Opportunities.
+          No active Aave, Compound or Fluid positions loaded. Vault and pool deposits are available in Opportunities.
         </p>
         <div class="card-grid">
+          <Card v-for="p in data.fluidPositions" :key="p.id" class="card-stat">
+            <template #title
+              ><a :href="`https://fluid.io/1/stats/vaults?id=${p.vault}`" target="_blank" rel="noopener"
+                >Fluid Vault {{ p.vault }} ↗</a
+              ></template
+            >
+            <template #subtitle
+              >Ethereum · NFT #{{ p.id }}<br /><span class="mono">{{ p.user }}</span></template
+            >
+            <template #content>
+              <StatWithBreakdown v-for="leg in p.supply" :key="'s' + leg.asset" label="Collateral">
+                {{ leg.amount.toLocaleString('en-US', { maximumSignificantDigits: 7 }) }} {{ leg.asset }} ({{
+                  toUSDCurrency(leg.usd)
+                }}) · {{ leg.apr }}% APR
+              </StatWithBreakdown>
+              <StatWithBreakdown v-for="leg in p.borrow" :key="'b' + leg.asset" label="Borrowed">
+                {{ leg.amount.toLocaleString('en-US', { maximumSignificantDigits: 7 }) }} {{ leg.asset }} ({{
+                  toUSDCurrency(leg.usd)
+                }}) · {{ leg.apr }}% APR
+              </StatWithBreakdown>
+              <StatWithBreakdown label="Net value">{{ toUSDCurrency(p.equity) }}</StatWithBreakdown>
+              <StatWithBreakdown label="Health factor">{{ p.healthFactor }}</StatWithBreakdown>
+              <StatWithBreakdown label="Net daily earnings">{{ toUSDCurrency(p.daily) }}</StatWithBreakdown>
+              <p v-if="p.smart">APR excludes DEX trading fees.</p>
+            </template>
+          </Card>
           <template v-for="(chainProps, chain) in data.compoundBorrowingInfo" :key="chain">
             <template v-for="(marketProps, market) in chainProps" :key="market">
               <Card v-for="(positionProps, user) in marketProps.positions" :key="user" class="card-stat">

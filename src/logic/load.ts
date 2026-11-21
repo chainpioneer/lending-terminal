@@ -1,4 +1,11 @@
 import { Call, Contract } from 'ethcall'
+import {
+  applyFluidPositions,
+  fluidDexAddresses,
+  parseFluidPositions,
+  type FluidPosition,
+  type FluidPositionData,
+} from './processFluid'
 import { portfolioSummary } from './portfolioSummary'
 import { portfolioAllocation } from './portfolioAllocation'
 
@@ -9,6 +16,9 @@ import borrowableAbi from '../../abi/borrowable.json' assert { type: 'json' }
 import collateralAbi from '../../abi/collateral.json' assert { type: 'json' }
 import compoundBorrowingAbi from '../../abi/CompoundBorrowing.json' assert { type: 'json' }
 import extraLendingPoolAbi from '../../abi/ExtraLendingPool.json' assert { type: 'json' }
+import fluidVaultResolverAbi from '../../abi/FluidVaultResolver.json' assert { type: 'json' }
+// getDexEntireData simulates updates; ABI is marked view so ethcall can batch it without sending a transaction.
+import fluidDexResolverAbi from '../../abi/FluidDexResolver.json' assert { type: 'json' }
 import morphoPoolAbi from '../../abi/MorphoPool.json' assert { type: 'json' }
 import revertVaultAbi from '../../abi/revertV3Vault.json' assert { type: 'json' }
 import savingsXDaiAdapterAbi from '../../abi/SavingsXDaiAdapter.json' assert { type: 'json' }
@@ -45,6 +55,7 @@ import { parseSparkCall1Data, processSparkPools } from './processSpark'
 export default async function load(users: string[], onChainDone?: (chain: Chains) => void) {
   await waitForPrices()
   const ctx = createLoadContext()
+  const fluidPositions: FluidPosition[] = []
 
   const chains = Object.keys(CHAIN_CONF) as Chains[]
 
@@ -196,6 +207,10 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
       reserveIds.forEach((id) => calls1.push(pool.reserves(id)))
       users.forEach((addr) => calls1.push(pool.getPositionStatus(reserveIds, addr)))
     }
+    const fluidResolver = conf.fluid ? new Contract(conf.fluid.vaultResolver, fluidVaultResolverAbi) : undefined
+    const fluidUsers = [...new Map(users.map((user) => [user.toLowerCase(), user])).values()]
+    const fluidCall1Index = calls1.length
+    if (fluidResolver) calls1.push(...fluidUsers.map((user) => fluidResolver.positionsNftIdOfUser(user)))
     console.log('calling call1', chain)
 
     const call1Data = await callWithTimeout(chain, calls1, currentBlockNumber)
@@ -277,9 +292,21 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
       })
     }
 
+    const fluidCall2Index = calls2.length
+    const fluidNfts = fluidResolver
+      ? fluidUsers.flatMap((user, i) => (call1Data[fluidCall1Index + i] as bigint[]).map((id) => ({ id, user })))
+      : []
+    if (fluidResolver) calls2.push(...fluidNfts.map(({ id }) => fluidResolver.positionByNftId(id)))
     console.log('calling call2', chain)
 
     const call2Data = await callWithTimeout(chain, calls2, currentBlockNumber)
+    const fluidPositionData: FluidPositionData[] = call2Data
+      .slice(fluidCall2Index)
+      .map(([position, vault], i) => [
+        { nftId: position.nftId, owner: fluidNfts[i].user, supply: position.supply, borrow: position.borrow },
+        vault,
+      ])
+    const fluidDexes = fluidDexAddresses(fluidPositionData)
     console.log('calling call2: success', chain)
 
     // === Build call3: second borrowable underlyings, vault historical state ===
@@ -505,12 +532,22 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
     console.log('calling call4', chain)
     console.log(calls4)
+    const fluidDexCalls = conf.fluid
+      ? fluidDexes.map((dex) => new Contract(conf.fluid!.dexResolver, fluidDexResolverAbi).getDexEntireData(dex))
+      : []
+    const fluidCall4Index = calls4.length + lendingProtocolCalls.length
     const dataFromCall4 = await tryWithTimeout(
       chain,
-      [...calls4, ...lendingProtocolCalls],
+      [...calls4, ...lendingProtocolCalls, ...fluidDexCalls],
       currentBlockNumber,
       undefined,
       '0xcA11bde05977b3631167028862bE2a173976CA11',
+    )
+    fluidPositions.push(
+      ...parseFluidPositions(
+        fluidPositionData,
+        Object.fromEntries(fluidDexes.map((dex, i) => [dex, dataFromCall4[fluidCall4Index + i]])),
+      ),
     )
 
     // === Parse call4: symbols, vault reinvest data, LP reserves ===
@@ -723,31 +760,6 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
     }
   })
 
-  const sortedChains = Object.keys(ctx.cumulativeValuesByChains).sort((a, b) => {
-    return ctx.chainAggregatedStats[b].newUserSuppliedUsd - ctx.chainAggregatedStats[a].newUserSuppliedUsd
-  })
-
-  sortedChains.forEach((chain, i) => {
-    const val = ctx.cumulativeValuesByChains[chain]
-    const sortedAssets = Object.keys(val).sort((assetA, assetB) => {
-      return (
-        val[assetB].newUserSuppliedUsd +
-        (ctx.idleBalancesByChain[chain][assetB] ? ctx.idleBalancesByChain[chain][assetB].usd : 0) -
-        (val[assetA].newUserSuppliedUsd +
-          (ctx.idleBalancesByChain[chain][assetA] ? ctx.idleBalancesByChain[chain][assetA].usd : 0))
-      )
-    })
-    sortedAssets.forEach((x, j) => {
-      if (j === 0) return
-      const val2 = val[x]
-      delete val[x]
-      val[x] = val2
-    })
-    if (i === 0) return
-    delete ctx.cumulativeValuesByChains[chain]
-    ctx.cumulativeValuesByChains[chain] = val
-  })
-
   console.log('compoundBorrowingReward.usd', ctx.compoundBorrowingReward.usd)
 
   console.log('supplied as collateral', ctx.suppliedAsCollateral)
@@ -811,6 +823,38 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
   }
 
   // === Sort and filter ===
+  const fluidDebts = applyFluidPositions(ctx, fluidPositions)
+  for (const position of fluidPositions) {
+    totalDeposited += position.equity
+    oldTotalEarnings += position.daily
+    newTotalEarnings += position.daily
+    maxTotalEarnings += position.daily
+  }
+
+  const sortedChains = Object.keys(ctx.cumulativeValuesByChains).sort((a, b) => {
+    return ctx.chainAggregatedStats[b].newUserSuppliedUsd - ctx.chainAggregatedStats[a].newUserSuppliedUsd
+  })
+
+  sortedChains.forEach((chain, i) => {
+    const val = ctx.cumulativeValuesByChains[chain]
+    const sortedAssets = Object.keys(val).sort((assetA, assetB) => {
+      return (
+        val[assetB].newUserSuppliedUsd +
+        (ctx.idleBalancesByChain[chain][assetB] ? ctx.idleBalancesByChain[chain][assetB].usd : 0) -
+        (val[assetA].newUserSuppliedUsd +
+          (ctx.idleBalancesByChain[chain][assetA] ? ctx.idleBalancesByChain[chain][assetA].usd : 0))
+      )
+    })
+    sortedAssets.forEach((x, j) => {
+      if (j === 0) return
+      const val2 = val[x]
+      delete val[x]
+      val[x] = val2
+    })
+    if (i === 0) return
+    delete ctx.cumulativeValuesByChains[chain]
+    ctx.cumulativeValuesByChains[chain] = val
+  })
   const sortedAssets = Object.keys(ctx.cumulativeValuesByAsset).sort((a, b) => {
     return ctx.cumulativeValuesByAsset[b].newUserSuppliedUsd - ctx.cumulativeValuesByAsset[a].newUserSuppliedUsd
   })
@@ -887,12 +931,15 @@ export default async function load(users: string[], onChainDone?: (chain: Chains
 
   const res = {
     goodPools,
-    portfolioSummary: portfolioSummary(ctx),
+    fluidPositions,
+    portfolioSummary: portfolioSummary(ctx, fluidPositions),
     portfolioAllocation: portfolioAllocation(ctx.suppliedByAssetByUser, ctx.idleBalancesByAssetByUser, [
       ctx.aaveVDBalancesByAsset,
       ctx.compoundDebtByAsset,
+      fluidDebts,
     ]),
     fetchedAt: new Date().toISOString(),
+    netDailyEarningsUsd: oldTotalEarnings,
     idleBalancesByAsset: ctx.idleBalancesByAsset,
     idleBalancesByChain: ctx.idleBalancesByChain,
     idleBalancesByChainByUser: ctx.idleBalancesByChainByUser,

@@ -10,6 +10,7 @@
     "deploy": "gh-pages -d dist",
     "lint": "eslint src/",
     "test:aave": "node scripts/check-aave.mjs",
+    "test:fluid": "node scripts/check-fluid.mjs",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,vue}\""
   },
